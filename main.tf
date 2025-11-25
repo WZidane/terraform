@@ -46,3 +46,21 @@ resource "aws_s3_bucket" "documents" {
     Project     = "Voteka"
   }
 }
+
+# Bucket S3 pour le frontend
+resource "aws_s3_bucket" "frontend" {
+  bucket = "frontend-bucket"
+  acl    = "private"
+
+  # Hébergement statique activé
+  website {
+    index_document = "index.html"
+    error_document = "index.html"
+  }
+
+  tags = {
+    Name        = "FrontendBucket"
+    Environment = "Dev"
+    Project     = "Voteka"
+  }
+}

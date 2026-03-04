@@ -29,16 +29,15 @@
   </div>
 
   <script>
-    // Ces variables seront remplacées par Terraform
     const poolData = {
       UserPoolId: "${user_pool_id}",
       ClientId: "${client_id}"
     };
 
     const userPool = new AmazonCognitoIdentity.CognitoUserPool(poolData);
-    let userEmail = ""; // Pour garder l'email en mémoire pour la confirmation
+    let userEmail = "";
 
-    // 1. GESTION DE L'INSCRIPTION
+    // GESTION DE L'INSCRIPTION
     document.getElementById("signupForm").addEventListener("submit", (e) => {
       e.preventDefault();
       const message = document.getElementById("message");
@@ -64,13 +63,12 @@
         message.textContent = "Inscription réussie ! Vérifie tes emails pour le code.";
         message.className = "mt-2 text-center text-blue-500";
         
-        // On cache le signup, on montre la confirmation
         document.getElementById("signupForm").classList.add("hidden");
         document.getElementById("confirmForm").classList.remove("hidden");
       });
     });
 
-    // 2. GESTION DE LA CONFIRMATION DU CODE
+    // Gestion code de confirmation
     document.getElementById("confirmForm").addEventListener("submit", (e) => {
       e.preventDefault();
       const code = document.getElementById("confirmCode").value;

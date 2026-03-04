@@ -49,7 +49,7 @@ resource "aws_s3_bucket" "documents" {
 
 # Bucket S3 pour le frontend
 resource "aws_s3_bucket" "frontend_bucket" {
-  bucket = "frontend-bucket-${random_id.bucket_suffix.hex}"
+  bucket = "voteka-${random_id.bucket_suffix.hex}"
 
   tags = {
     Name        = "FrontendBucket"

@@ -53,7 +53,7 @@
           // On récupère le Token JWT
           const accessToken = result.getAccessToken().getJwtToken();
           
-          // On le stocke pour que ta page Profile puisse l'utiliser
+          // On le stock
           localStorage.setItem("token", accessToken);
           
           console.log("Connexion réussie !");

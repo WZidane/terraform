@@ -51,12 +51,6 @@ resource "aws_s3_bucket" "documents" {
 resource "aws_s3_bucket" "frontend_bucket" {
   bucket = "frontend-bucket-${random_id.bucket_suffix.hex}"
 
-  # Hébergement statique activé
-  # website {
-  #   index_document = "index.html"
-  #   error_document = "index.html"
-  # }
-
   tags = {
     Name        = "FrontendBucket"
     Environment = "Dev"
@@ -100,15 +94,129 @@ resource "aws_s3_bucket_website_configuration" "web_config" {
   }
 }
 
-resource "aws_s3_object" "index_test" {
-  bucket = aws_s3_bucket.frontend_bucket.id
-  key = "index.html"
+resource "aws_s3_object" "index" {
+  bucket       = aws_s3_bucket.frontend_bucket.id
+  key          = "index.html"
   
-  source = "${path.module}/index.html"
-
-  etag = filemd5("${path.module}/index.html")
+  # On lit le fichier brut et on remplace le texte
+  content = replace(
+    file("${path.module}/index.html.tpl"), 
+    "{api_url}", 
+    "${aws_apigatewayv2_api.voteka_api.api_endpoint}/candidats"
+  )
   
   content_type = "text/html"
+}
+
+resource "aws_iam_role" "lambda_role" {
+  name = "lambda_role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action = "sts:AssumeRole"
+      Effect = "Allow"
+      Principal = {
+        Service = "lambda.amazonaws.com"
+      }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "lambda_logs" {
+  role       = aws_iam_role.lambda_role.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+}
+
+resource "aws_iam_role_policy" "lambda_dynamo_access" {
+  name = "lambda_dynamo_access"
+  role = aws_iam_role.lambda_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "dynamodb:Scan",
+          "dynamodb:GetItem",
+          "dynamodb:Query"
+        ]
+
+        Resource = [
+          aws_dynamodb_table.candidats.arn,
+          aws_dynamodb_table.votes.arn
+        ]
+      }
+    ]
+  })
+}
+
+data "archive_file" "lambda" {
+  type        = "zip"
+  source_file  = "${path.module}/src/lambda.py"
+  output_path = "lambda_function_src.zip"
+}
+
+resource "aws_lambda_function" "voteka_lambda" {
+  function_name = "voteka_handler"
+  filename      = data.archive_file.lambda.output_path
+  source_code_hash = data.archive_file.lambda.output_base64sha256
+
+  role    = aws_iam_role.lambda_role.arn
+  runtime = "python3.11"
+  handler = "lambda.lambda_handler"
+
+  environment {
+    variables = {
+      CANDIDATS_TABLE = aws_dynamodb_table.candidats.name
+    }
+  }
+}
+
+resource "aws_apigatewayv2_api" "voteka_api" {
+  name          = "voteka-api"
+  protocol_type = "HTTP"
+  
+  # Config CORS
+  cors_configuration {
+    allow_origins = ["*"]
+    allow_methods = ["GET", "POST", "OPTIONS"]
+    allow_headers = ["content-type"]
+  }
+}
+
+resource "aws_apigatewayv2_stage" "default" {
+  api_id      = aws_apigatewayv2_api.voteka_api.id
+  name        = "$default"
+  auto_deploy = true
+}
+
+resource "aws_apigatewayv2_integration" "lambda_int" {
+  api_id           = aws_apigatewayv2_api.voteka_api.id
+  integration_type = "AWS_PROXY"
+  integration_uri  = aws_lambda_function.voteka_lambda.invoke_arn
+}
+
+# route
+resource "aws_apigatewayv2_route" "get_candidats" {
+  api_id    = aws_apigatewayv2_api.voteka_api.id
+  route_key = "GET /candidats"
+  target    = "integrations/${aws_apigatewayv2_integration.lambda_int.id}"
+}
+
+# permission
+resource "aws_lambda_permission" "api_gw" {
+  statement_id  = "AllowExecutionFromAPIGateway"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.voteka_lambda.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.voteka_api.execution_arn}/*/*"
+}
+
+output "url_api" {
+  description = "URL de ton API à appeler en JS :"
+  value       = "${aws_apigatewayv2_api.voteka_api.api_endpoint}/candidats"
 }
 
 output "url_du_site" {

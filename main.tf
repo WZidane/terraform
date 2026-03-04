@@ -100,7 +100,7 @@ resource "aws_s3_object" "index" {
   
   # Remplacement du texte pour injecter les variables 
   content = replace(
-    file("${path.module}/index.html.tpl"), 
+    file("${path.module}/templates/index.html.tpl"), 
     "{api_url}", 
     "${aws_apigatewayv2_api.voteka_api.api_endpoint}/candidats"
   )
@@ -276,7 +276,7 @@ resource "aws_s3_object" "register_page" {
   bucket       = aws_s3_bucket.frontend_bucket.id
   key          = "register.html"
   
-  content = templatefile("${path.module}/register.html.tpl", {
+  content = templatefile("${path.module}/templates/register.html.tpl", {
     user_pool_id = aws_cognito_user_pool.voteka_pool.id,
     client_id    = aws_cognito_user_pool_client.voteka_client.id
   })
@@ -287,7 +287,7 @@ resource "aws_s3_object" "register_page" {
 resource "aws_s3_object" "login_page" {
   bucket       = aws_s3_bucket.frontend_bucket.id
   key          = "login.html"
-  content      = templatefile("${path.module}/login.html.tpl", {
+  content      = templatefile("${path.module}/templates/login.html.tpl", {
     user_pool_id = aws_cognito_user_pool.voteka_pool.id,
     client_id    = aws_cognito_user_pool_client.voteka_client.id
   })

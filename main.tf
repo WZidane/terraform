@@ -98,7 +98,7 @@ resource "aws_s3_object" "index" {
   bucket       = aws_s3_bucket.frontend_bucket.id
   key          = "index.html"
   
-  # On lit le fichier brut et on remplace le texte
+  # Remplacement du texte pour injecter les variables 
   content = replace(
     file("${path.module}/index.html.tpl"), 
     "{api_url}", 
@@ -214,8 +214,96 @@ resource "aws_lambda_permission" "api_gw" {
   source_arn    = "${aws_apigatewayv2_api.voteka_api.execution_arn}/*/*"
 }
 
+# cognito config
+resource "aws_cognito_user_pool" "voteka_pool" {
+  name = "voteka-users"
+
+  username_attributes      = ["email"]
+  auto_verified_attributes = ["email"]
+
+  password_policy {
+    minimum_length    = 8
+    require_lowercase = true
+    require_numbers   = true
+    require_symbols   = true
+    require_uppercase = true
+  }
+
+  # Configuration de la vérification par email
+  verification_message_template {
+    default_email_option = "CONFIRM_WITH_CODE"
+    email_subject        = "Votre code de vérification pour Voteka"
+    email_message        = "Votre code est {####}. Bienvenue !"
+  }
+
+  schema {
+    attribute_data_type = "String"
+    name                = "email"
+    required            = true
+    mutable             = true
+  }
+
+  schema {
+    name                = "given_name"
+    attribute_data_type = "String"
+    mutable             = true
+    required            = true
+  }
+
+  schema {
+    name                = "family_name"
+    attribute_data_type = "String"
+    mutable             = true
+    required            = true
+  }
+}
+
+resource "aws_cognito_user_pool_client" "voteka_client" {
+  name         = "voteka-client"
+  user_pool_id = aws_cognito_user_pool.voteka_pool.id
+
+  generate_secret = false
+
+  # Flux d'authentification autorisés
+  explicit_auth_flows = [
+    "ALLOW_USER_PASSWORD_AUTH",
+    "ALLOW_REFRESH_TOKEN_AUTH",
+    "ALLOW_USER_SRP_AUTH"
+  ]
+}
+
+resource "aws_s3_object" "register_page" {
+  bucket       = aws_s3_bucket.frontend_bucket.id
+  key          = "register.html"
+  
+  content = templatefile("${path.module}/register.html.tpl", {
+    user_pool_id = aws_cognito_user_pool.voteka_pool.id,
+    client_id    = aws_cognito_user_pool_client.voteka_client.id
+  })
+  
+  content_type = "text/html"
+}
+
+resource "aws_s3_object" "login_page" {
+  bucket       = aws_s3_bucket.frontend_bucket.id
+  key          = "login.html"
+  content      = templatefile("${path.module}/login.html.tpl", {
+    user_pool_id = aws_cognito_user_pool.voteka_pool.id,
+    client_id    = aws_cognito_user_pool_client.voteka_client.id
+  })
+  content_type = "text/html"
+}
+
+output "cognito_user_pool_id" {
+  value = aws_cognito_user_pool.voteka_pool.id
+}
+
+output "cognito_client_id" {
+  value = aws_cognito_user_pool_client.voteka_client.id
+}
+
 output "url_api" {
-  description = "URL de ton API à appeler en JS :"
+  description = "URL de l'API à appeler en JS :"
   value       = "${aws_apigatewayv2_api.voteka_api.api_endpoint}/candidats"
 }
 

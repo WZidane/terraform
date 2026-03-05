@@ -30,10 +30,10 @@
 
     <script>
         async function chargerCandidats() {
-            const API_URL = "{api_url}"; 
+            const API_URL = "${api_url}/candidats"; 
             
-            const listeUl = document.getElementById('liste-candidats');
-            const erreurDiv = document.getElementById('message-erreur');
+            const listeUl = document.getElementById("liste-candidats");
+            const erreurDiv = document.getElementById("message-erreur");
             
             listeUl.innerHTML = "<li>Chargement...</li>";
             erreurDiv.innerText = "";
@@ -49,9 +49,9 @@
                 } else {
                     listeUl.innerHTML = ""; // On vide la liste
                     candidats.forEach(c => {
-                        const li = document.createElement('li');
+                        const li = document.createElement("li");
                         // On affiche l'id ou le nom selon ce que tu as mis en DB
-                        li.textContent = `ID: ${c.id} ${c.nom ? '- Nom: ' + c.nom : ''}`;
+                        li.textContent = `ID: $${c.id} $${c.nom ? "- Nom: " + c.nom : ""}`;
                         listeUl.appendChild(li);
                     });
                 }

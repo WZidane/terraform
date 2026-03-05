@@ -146,13 +146,12 @@ EOF
 resource "aws_s3_object" "index" {
   bucket       = aws_s3_bucket.frontend_bucket.id
   key          = "index.html"
-  
-  # Remplacement du texte pour injecter les variables 
-  content = replace(
-    file("${path.module}/templates/index.html.tpl"), 
-    "{api_url}", 
-    "${aws_apigatewayv2_api.voteka_api.api_endpoint}/candidats"
-  )
+
+  content = templatefile("${path.module}/templates/index.html.tpl", {
+    user_pool_id = aws_cognito_user_pool.voteka_pool.id,
+    client_id    = aws_cognito_user_pool_client.voteka_client.id,
+    api_url = aws_apigatewayv2_api.voteka_api.api_endpoint
+  })
   
   content_type = "text/html"
 }

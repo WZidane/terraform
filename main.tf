@@ -68,31 +68,80 @@ resource "aws_s3_bucket_public_access_block" "web_access" {
 }
 
 # politique d'accès public pour le bucket frontend (lecture seule)
-resource "aws_s3_bucket_policy" "public_read_policy" {
-  depends_on = [aws_s3_bucket_public_access_block.web_access]
+# resource "aws_s3_bucket_policy" "public_read_policy" {
+#   depends_on = [aws_s3_bucket_public_access_block.web_access]
   
+#   bucket = aws_s3_bucket.frontend_bucket.id
+#   policy = jsonencode({
+#     Version = "2012-10-17"
+#     Statement = [
+#       {
+#         Sid       = "PublicReadGetObject"
+#         Effect    = "Allow"
+#         Principal = "*"
+#         Action    = "s3:GetObject"
+#         Resource  = "${aws_s3_bucket.frontend_bucket.arn}/*"
+#       }
+#     ]
+#   })
+# }
+
+resource "aws_cloudfront_origin_access_control" "default" {
+  name                              = "s3_oac"
+  origin_access_control_origin_type = "s3"
+  signing_behavior                  = "always"
+  signing_protocol                  = "sigv4"
+}
+
+# Policy S3 pour que Cloudfront y accède
+resource "aws_s3_bucket_policy" "public_read_policy" {
   bucket = aws_s3_bucket.frontend_bucket.id
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
       {
-        Sid       = "PublicReadGetObject"
-        Effect    = "Allow"
-        Principal = "*"
-        Action    = "s3:GetObject"
-        Resource  = "${aws_s3_bucket.frontend_bucket.arn}/*"
+        Action   = "s3:GetObject"
+        Effect   = "Allow"
+        Resource = "${aws_s3_bucket.frontend_bucket.arn}/*"
+        Principal = {
+          Service = "cloudfront.amazonaws.com"
+        }
+        Condition = {
+          StringEquals = {
+            "AWS:SourceArn" = aws_cloudfront_distribution.s3_distribution.arn
+          }
+        }
       }
     ]
   })
 }
 
-resource "aws_s3_bucket_website_configuration" "web_config" {
-  bucket = aws_s3_bucket.frontend_bucket.id
-
-  index_document {
-    suffix = "index.html"
-  }
+resource "aws_cloudfront_function" "rewrite_uri" {
+  name    = "rewrite-uri"
+  runtime = "cloudfront-js-1.0"
+  publish = true
+  code    = <<EOF
+function handler(event) {
+    var request = event.request;
+    var uri = request.uri;
+    
+    // Si l'URL ne finit pas par une extension (ex: .js, .css, .png)
+    // et qu'elle n'est pas la racine (/), on ajoute .html
+    if (!uri.includes('.') && uri !== '/') {
+        request.uri += '.html';
+    }
+    return request;
 }
+EOF
+}
+
+# resource "aws_s3_bucket_website_configuration" "web_config" {
+#   bucket = aws_s3_bucket.frontend_bucket.id
+
+#   index_document {
+#     suffix = "index.html"
+#   }
+# }
 
 resource "aws_s3_object" "index" {
   bucket       = aws_s3_bucket.frontend_bucket.id
@@ -294,6 +343,58 @@ resource "aws_s3_object" "login_page" {
   content_type = "text/html"
 }
 
+resource "aws_cloudfront_distribution" "s3_distribution" {
+  origin {
+    domain_name              = aws_s3_bucket.frontend_bucket.bucket_regional_domain_name
+    origin_access_control_id = aws_cloudfront_origin_access_control.default.id
+    origin_id                = "S3Origin"
+  }
+
+  enabled             = true
+  is_ipv6_enabled     = true
+  default_root_object = "index.html"
+
+  default_cache_behavior {
+    allowed_methods        = ["GET", "HEAD"]
+    cached_methods         = ["GET", "HEAD"]
+    target_origin_id       = "S3Origin"
+    viewer_protocol_policy = "redirect-to-https"
+
+    forwarded_values {
+      query_string = false
+      cookies { forward = "none" }
+    }
+
+    # C'est ici qu'on lie la fonction pour avoir les URLs sans .html
+    function_association {
+      event_type   = "viewer-request"
+      function_arn = aws_cloudfront_function.rewrite_uri.arn
+    }
+  }
+
+  restrictions {
+    geo_restriction { restriction_type = "none" }
+  }
+
+  viewer_certificate {
+    cloudfront_default_certificate = true
+  }
+}
+
+# Fonction d'invalidation automatique du cache CloudFront si maj d'un fichier html pour test
+resource "null_resource" "invalidate_cache" {
+  # NE PAS OUBLIER DE RAJOUTER LES NOUVEAUX FICHIERS HTML
+  triggers = {
+    index_hash    = aws_s3_object.index.etag
+    login_hash    = aws_s3_object.login_page.etag
+    register_hash = aws_s3_object.register_page.etag
+  }
+
+  provisioner "local-exec" {
+    command = "aws cloudfront create-invalidation --distribution-id ${aws_cloudfront_distribution.s3_distribution.id} --paths '/*'"
+  }
+}
+
 output "cognito_user_pool_id" {
   value = aws_cognito_user_pool.voteka_pool.id
 }
@@ -307,7 +408,12 @@ output "url_api" {
   value       = "${aws_apigatewayv2_api.voteka_api.api_endpoint}/candidats"
 }
 
+# output "url_du_site" {
+#   description = "Lien pour accéder au site :"
+#   value       = "http://${aws_s3_bucket_website_configuration.web_config.website_endpoint}"
+# }
+
 output "url_du_site" {
   description = "Lien pour accéder au site :"
-  value       = "http://${aws_s3_bucket_website_configuration.web_config.website_endpoint}"
+  value       = "https://${aws_cloudfront_distribution.s3_distribution.domain_name}"
 }

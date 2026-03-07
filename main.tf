@@ -2,8 +2,8 @@ provider "aws" {
   region = var.aws_region
 }
 
-resource "aws_dynamodb_table" "users" {
-  name           = "Users"
+resource "aws_dynamodb_table" "polls" {
+  name           = "Polls"
   billing_mode   = "PAY_PER_REQUEST"
   hash_key       = "id"
 
@@ -12,10 +12,7 @@ resource "aws_dynamodb_table" "users" {
     type = "S"
   }
 
-  tags = {
-    Environment = "Dev"
-    Project     = "Voteka"
-  }
+  tags = { Project = "Voteka" }
 }
 
 resource "aws_dynamodb_table" "votes" {
@@ -28,14 +25,23 @@ resource "aws_dynamodb_table" "votes" {
     type = "S"
   }
 
-  tags = {
-    Environment = "Dev"
-    Project     = "Voteka"
+  attribute {
+    name = "user_id" # cognito sub
+    type = "S"
   }
+
+  # GSI pour retrouver tous les votes d'un utilisateur sans scanner la table
+  global_secondary_index {
+    name               = "UserIndex"
+    hash_key           = "user_id"
+    projection_type    = "ALL"
+  }
+
+  tags = { Project = "Voteka" }
 }
 
-resource "aws_dynamodb_table" "polls" {
-  name           = "Polls"
+resource "aws_dynamodb_table" "application" {
+  name           = "Application"
   billing_mode   = "PAY_PER_REQUEST"
   hash_key       = "id"
 
@@ -44,10 +50,31 @@ resource "aws_dynamodb_table" "polls" {
     type = "S"
   }
 
-  tags = {
-    Environment = "Dev"
-    Project     = "Voteka"
+  attribute {
+    name = "user_id" # cognito sub
+    type = "S"
   }
+
+  global_secondary_index {
+    name               = "UserAppIndex"
+    hash_key           = "user_id"
+    projection_type    = "ALL"
+  }
+
+  tags = { Project = "Voteka" }
+}
+
+resource "aws_dynamodb_table" "documents" {
+  name           = "Documents"
+  billing_mode   = "PAY_PER_REQUEST"
+  hash_key       = "id"
+
+  attribute {
+    name = "id"
+    type = "S"
+  }
+
+  tags = { Project = "Voteka" }
 }
 
 resource "random_id" "bucket_suffix" {
@@ -209,9 +236,10 @@ resource "aws_iam_role_policy" "lambda_dynamo_access" {
         ]
 
         Resource = [
-          aws_dynamodb_table.users.arn,
           aws_dynamodb_table.votes.arn,
-          aws_dynamodb_table.polls.arn
+          aws_dynamodb_table.polls.arn,
+          aws_dynamodb_table.application.arn, 
+          aws_dynamodb_table.documents.arn    
         ]
       }
     ]
@@ -222,24 +250,6 @@ data "archive_file" "lambda" {
   type        = "zip"
   source_dir  = "${path.module}/src"
   output_path = "lambda_function_src.zip"
-}
-
-resource "aws_lambda_function" "users_lambda" {
-  function_name = "voteka_users_handler"
-  filename      = data.archive_file.lambda.output_path
-  source_code_hash = data.archive_file.lambda.output_base64sha256
-
-  role    = aws_iam_role.lambda_role.arn
-  runtime = "python3.11"
-  handler = "lambda_users.lambda_handler"
-
-  environment {
-    variables = {
-      USERS_TABLE = aws_dynamodb_table.users.name
-      COGNITO_USER_POOL_ID = aws_cognito_user_pool.voteka_pool.id
-      COGNITO_REGION = var.cognito_region
-    }
-  }
 }
 
 resource "aws_lambda_function" "polls_lambda" {
@@ -272,7 +282,6 @@ resource "aws_lambda_function" "votes_lambda" {
   environment {
     variables = {
       VOTES_TABLE = aws_dynamodb_table.votes.name
-      USERS_TABLE = aws_dynamodb_table.users.name
       POLLS_TABLE = aws_dynamodb_table.polls.name
       COGNITO_USER_POOL_ID = aws_cognito_user_pool.voteka_pool.id
       COGNITO_REGION = var.cognito_region
@@ -296,12 +305,6 @@ resource "aws_apigatewayv2_stage" "default" {
   api_id      = aws_apigatewayv2_api.voteka_api.id
   name        = "$default"
   auto_deploy = true
-}
-
-resource "aws_apigatewayv2_integration" "users_int" {
-  api_id           = aws_apigatewayv2_api.voteka_api.id
-  integration_type = "AWS_PROXY"
-  integration_uri  = aws_lambda_function.users_lambda.invoke_arn
 }
 
 resource "aws_apigatewayv2_integration" "polls_int" {
@@ -329,13 +332,6 @@ resource "aws_apigatewayv2_authorizer" "cognito" {
     issuer  = "https://cognito-idp.${var.cognito_region}.amazonaws.com/${aws_cognito_user_pool.voteka_pool.id}"
     audience = [aws_cognito_user_pool_client.voteka_client.id]
   }
-}
-
-resource "aws_apigatewayv2_route" "get_users" {
-  api_id       = aws_apigatewayv2_api.voteka_api.id
-  route_key    = "GET /users"
-  target       = "integrations/${aws_apigatewayv2_integration.users_int.id}"
-  authorizer_id = aws_apigatewayv2_authorizer.cognito.id
 }
 
 resource "aws_apigatewayv2_route" "get_polls" {
@@ -366,14 +362,7 @@ resource "aws_apigatewayv2_route" "post_votes" {
   authorizer_id = aws_apigatewayv2_authorizer.cognito.id
 }
 
-# permission
-resource "aws_lambda_permission" "api_gw_users" {
-  statement_id  = "AllowExecutionFromAPIGatewayUsers"
-  action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.users_lambda.function_name
-  principal     = "apigateway.amazonaws.com"
-  source_arn    = "${aws_apigatewayv2_api.voteka_api.execution_arn}/*/*"
-}
+# PERMISSIONS 
 
 resource "aws_lambda_permission" "api_gw_polls" {
   statement_id  = "AllowExecutionFromAPIGatewayPolls"

@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.jsdelivr.net/npm/amazon-cognito-identity-js@6.3.7/dist/amazon-cognito-identity.min.js"></script>
     <title>Voteka</title>
     <style>
         body { font-family: sans-serif; background: #f4f4f9; padding: 20px; text-align: center; }
@@ -15,6 +16,15 @@
         button:hover { background: #0056b3; }
         .error { color: red; margin-top: 10px; }
     </style>
+
+    <script>
+        window.VotekaConfig = {
+            userPoolId: "${user_pool_id}",
+            clientId: "${client_id}"
+        }
+    </script>
+
+    <script src="header.js"></script>
 </head>
 <body>
 
@@ -31,7 +41,7 @@
     <script>
         // Vérifie présence du token Cognito (stocké en localStorage)
         if (!localStorage.getItem('token')) {
-            window.location.href = "login.html";
+            window.location.href = "login";
         }
 
         async function chargerPolls() {

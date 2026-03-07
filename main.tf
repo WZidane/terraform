@@ -471,6 +471,16 @@ resource "aws_s3_object" "login_page" {
   content_type = "text/html"
 }
 
+resource "aws_s3_object" "header_js" {
+  bucket       = aws_s3_bucket.frontend_bucket.id
+  key          = "header.js"
+  
+  source       = "${path.module}/templates/header.js" 
+  
+  content_type = "application/javascript"
+
+}
+
 resource "aws_cloudfront_distribution" "s3_distribution" {
   origin {
     domain_name              = aws_s3_bucket.frontend_bucket.bucket_regional_domain_name
@@ -511,11 +521,12 @@ resource "aws_cloudfront_distribution" "s3_distribution" {
 
 # Fonction d'invalidation automatique du cache CloudFront si maj d'un fichier html pour test
 resource "null_resource" "invalidate_cache" {
-  # NE PAS OUBLIER DE RAJOUTER LES NOUVEAUX FICHIERS HTML
+  # NE PAS OUBLIER DE RAJOUTER LES NOUVEAUX FICHIERS HTML/JS
   triggers = {
     index_hash    = aws_s3_object.index.etag
     login_hash    = aws_s3_object.login_page.etag
     register_hash = aws_s3_object.register_page.etag
+    header_hash   = aws_s3_object.header_js.etag
   }
 
   provisioner "local-exec" {

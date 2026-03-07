@@ -30,7 +30,6 @@ resource "aws_dynamodb_table" "votes" {
     type = "S"
   }
 
-  # GSI pour retrouver tous les votes d'un utilisateur sans scanner la table
   global_secondary_index {
     name               = "UserIndex"
     hash_key           = "user_id"

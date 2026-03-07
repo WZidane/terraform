@@ -317,34 +317,53 @@ resource "aws_apigatewayv2_integration" "votes_int" {
 }
 
 # route
+resource "aws_apigatewayv2_authorizer" "cognito" {
+  api_id          = aws_apigatewayv2_api.voteka_api.id
+  name            = "cognito-authorizer"
+  authorizer_type = "JWT"
+  identity_sources = [
+    "$request.header.Authorization"
+  ]
+
+  jwt_configuration {
+    issuer  = "https://cognito-idp.${var.cognito_region}.amazonaws.com/${aws_cognito_user_pool.voteka_pool.id}"
+    audience = [aws_cognito_user_pool_client.voteka_client.id]
+  }
+}
+
 resource "aws_apigatewayv2_route" "get_users" {
-  api_id    = aws_apigatewayv2_api.voteka_api.id
-  route_key = "GET /users"
-  target    = "integrations/${aws_apigatewayv2_integration.users_int.id}"
+  api_id       = aws_apigatewayv2_api.voteka_api.id
+  route_key    = "GET /users"
+  target       = "integrations/${aws_apigatewayv2_integration.users_int.id}"
+  authorizer_id = aws_apigatewayv2_authorizer.cognito.id
 }
 
 resource "aws_apigatewayv2_route" "get_polls" {
-  api_id    = aws_apigatewayv2_api.voteka_api.id
-  route_key = "GET /polls"
-  target    = "integrations/${aws_apigatewayv2_integration.polls_int.id}"
+  api_id       = aws_apigatewayv2_api.voteka_api.id
+  route_key    = "GET /polls"
+  target       = "integrations/${aws_apigatewayv2_integration.polls_int.id}"
+  authorizer_id = aws_apigatewayv2_authorizer.cognito.id
 }
 
 resource "aws_apigatewayv2_route" "post_polls" {
-  api_id    = aws_apigatewayv2_api.voteka_api.id
-  route_key = "POST /polls"
-  target    = "integrations/${aws_apigatewayv2_integration.polls_int.id}"
+  api_id       = aws_apigatewayv2_api.voteka_api.id
+  route_key    = "POST /polls"
+  target       = "integrations/${aws_apigatewayv2_integration.polls_int.id}"
+  authorizer_id = aws_apigatewayv2_authorizer.cognito.id
 }
 
 resource "aws_apigatewayv2_route" "get_votes" {
-  api_id    = aws_apigatewayv2_api.voteka_api.id
-  route_key = "GET /votes"
-  target    = "integrations/${aws_apigatewayv2_integration.votes_int.id}"
+  api_id       = aws_apigatewayv2_api.voteka_api.id
+  route_key    = "GET /votes"
+  target       = "integrations/${aws_apigatewayv2_integration.votes_int.id}"
+  authorizer_id = aws_apigatewayv2_authorizer.cognito.id
 }
 
 resource "aws_apigatewayv2_route" "post_votes" {
-  api_id    = aws_apigatewayv2_api.voteka_api.id
-  route_key = "POST /votes"
-  target    = "integrations/${aws_apigatewayv2_integration.votes_int.id}"
+  api_id       = aws_apigatewayv2_api.voteka_api.id
+  route_key    = "POST /votes"
+  target       = "integrations/${aws_apigatewayv2_integration.votes_int.id}"
+  authorizer_id = aws_apigatewayv2_authorizer.cognito.id
 }
 
 # permission

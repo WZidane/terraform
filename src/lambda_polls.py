@@ -9,12 +9,25 @@ polls_table = dynamodb.Table(os.environ.get('POLLS_TABLE', 'Polls'))
 def lambda_handler(event, context):
     print("Event reçu:", json.dumps(event))
     method = event.get('httpMethod')
+    path_params = event.get('pathParameters') or {}
+
+
     if not method and 'requestContext' in event:
         method = event['requestContext'].get('http', {}).get('method')
     
     print(f"Méthode HTTP détectée: {method}")
     
     if method == 'GET':
+        poll_id = path_params.get('id')
+    if poll_id:
+        # GET /polls/{id} -> récupérer un poll spécifique
+        resp = polls_table.get_item(Key={'id': poll_id})
+        item = resp.get('Item')
+        if not item:
+            return response(404, {'error': 'Poll not found'})
+        return response(200, item)
+    else:
+        # GET /polls -> lister tous les polls
         resp = polls_table.scan()
         return response(200, resp.get('Items', []))
 

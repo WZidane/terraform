@@ -6,7 +6,7 @@
     <script src="https://cdn.jsdelivr.net/npm/amazon-cognito-identity-js@6.3.7/dist/amazon-cognito-identity.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <title>Voteka</title>
-    
+
     <script>
         window.VotekaConfig = {
             userPoolId: "${user_pool_id}",
@@ -19,12 +19,10 @@
 <body>
 
     <div class="max-w-3xl mx-auto p-6 bg-white rounded-lg shadow-md mt-8">
-        <h1 class="text-3xl font-bold text-gray-800 mb-4 text-center">Élections Voteka</h1>
-        
-        <ul id="liste-polls" class="divide-y divide-gray-200 flex flex-col justify-center items-center max-h-96 overflow-y-auto"></ul>
-        
-        <button onclick="javascript:window.location.href='create-poll'">Créer une élection</button>
+        <h1 id="title" class="text-3xl font-bold text-gray-800 mb-4 text-center"></h1>
 
+        <div id="info" class="flex justify-center items-center mt-5"></div>
+        
         <div id="message-erreur" class="text-red-600 mt-4 text-center font-medium"></div>
     </div>
 
@@ -35,6 +33,8 @@
         };
         const userPool = new AmazonCognitoIdentity.CognitoUserPool(poolData);
 
+        let userId = null;
+
         const cognitoUser = userPool.getCurrentUser();
 
         if (cognitoUser != null) {
@@ -43,18 +43,28 @@
                     window.location.href = "login"; // Redirection si session morte
                     return;
                 }
-            });
+
+                const idToken = session.getIdToken().getJwtToken();
+                const claims = session.getIdToken().decodePayload();
+                userId = claims.sub;
+            })
         } else {
             window.location.href = "login";
         }
 
-        async function chargerPolls() {
-            const API_URL = "${api_url}/polls";
+        async function chargerPoll() {
 
-            const listeUl = document.getElementById("liste-polls");
+            const title = document.getElementById('title');
+
+            const info = document.getElementById('info');
+
+            const params = new URLSearchParams(window.location.search);
+
+            const API_URL = "${api_url}/polls/" + params.get("id");
+            const API_URL_2 = "${api_url}/application/" + params.get("id") + "/" + userId;
+
             const erreurDiv = document.getElementById("message-erreur");
 
-            listeUl.innerHTML = "<li>Chargement...</li>";
             erreurDiv.innerText = "";
 
             try {
@@ -63,30 +73,27 @@
 
                 const polls = await response.json();
 
-                if (!Array.isArray(polls) || polls.length === 0) {
-                    listeUl.innerHTML = "<li>Aucun poll trouvé dans la base.</li>";
+                if (!polls) {
+                    info.innerHTML = "Poll inconnu.";
                 } else {
-                    listeUl.innerHTML = ""; // On vide la liste
-                    polls.forEach(p => {
-                        const li = document.createElement("li");
-                        const ahref = document.createElement("a");
+                    info.innerHTML = "";
+                    title.innerHTML = "Élection : " + polls.name;
 
-                        ahref.href = `poll?id=$${p.id}`;
-                        ahref.textContent = `$${p.name || 'N/A'}`;
+                    const ahref = document.createElement('a');
+                    ahref.classList = "bg-blue-500 text-center text-white my-3 w-50 p-3 h-min rounded-lg shadow-md hover:bg-white hover:text-blue-500 hover:shadow-lg transition duration-300";
+                    ahref.href = "#";
+                    ahref.textContent = "Candidatez !";
 
-                        li.classList = "bg-blue-500 text-center text-white my-3 w-50 p-3 h-min rounded-lg shadow-md hover:bg-white hover:text-blue-500 hover:shadow-lg transition duration-300";
-                        li.appendChild(ahref); 
-                        listeUl.appendChild(li);
-                    });
+                    info.appendChild(ahref);
                 }
             } catch (err) {
                 console.error(err);
-                listeUl.innerHTML = "";
+                info.innerHTML = "";
                 erreurDiv.innerText = "Impossible de joindre l'API. Vérifie l'URL et les CORS.";
             }
         }
 
-        chargerPolls();
+        chargerPoll();
     </script>
 </body>
 </html>

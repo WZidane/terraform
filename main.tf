@@ -177,14 +177,6 @@ function handler(event) {
 EOF
 }
 
-# resource "aws_s3_bucket_website_configuration" "web_config" {
-#   bucket = aws_s3_bucket.frontend_bucket.id
-
-#   index_document {
-#     suffix = "index.html"
-#   }
-# }
-
 resource "aws_s3_object" "index" {
   bucket       = aws_s3_bucket.frontend_bucket.id
   key          = "index.html"
@@ -292,11 +284,21 @@ resource "aws_apigatewayv2_api" "voteka_api" {
   name          = "voteka-api"
   protocol_type = "HTTP"
   
-  # Config CORS
   cors_configuration {
-    allow_origins = ["*"]
-    allow_methods = ["GET", "POST", "OPTIONS"]
-    allow_headers = ["content-type"]
+    # Pour le dev, tout est ouvert
+    allow_origins = ["*"] 
+
+    allow_methods = ["GET", "POST", "OPTIONS", "DELETE", "PUT"]
+    
+    allow_headers = [
+      "content-type", 
+      "authorization", 
+      "x-amz-date", 
+      "x-api-key", 
+      "x-amz-security-token"
+    ]
+    
+    max_age = 300
   }
 }
 

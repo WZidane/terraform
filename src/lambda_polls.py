@@ -18,16 +18,18 @@ def lambda_handler(event, context):
     print(f"Méthode HTTP détectée: {method}")
     
     if method == 'GET':
-        resp = polls_table.scan()
-        return response(200, resp.get('Items', []))
-    
-    if method == 'GET' and path_params.get('id'):
-        poll_id = path_params['id']
+        poll_id = path_params.get('id')
+    if poll_id:
+        # GET /polls/{id} -> récupérer un poll spécifique
         resp = polls_table.get_item(Key={'id': poll_id})
         item = resp.get('Item')
         if not item:
             return response(404, {'error': 'Poll not found'})
         return response(200, item)
+    else:
+        # GET /polls -> lister tous les polls
+        resp = polls_table.scan()
+        return response(200, resp.get('Items', []))
 
     # Si c'est un POST, on crée un nouveau poll
     if method == 'POST':

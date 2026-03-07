@@ -5,14 +5,14 @@ const CONFIG = {
 
 function createHeader() {
     const headerHTML = `
-        <nav style="display: flex; justify-content: space-between; align-items: center; padding: 15px 30px; background-color: #333; color: white; margin-bottom: 20px;">
-            <div style="font-weight: bold; font-size: 1.2rem;">
-                <a href="/" style="color: white; text-decoration: none;">🗳️ Voteka</a>
+        <nav class="flex justify-between items-center p-4 bg-gray-800 text-white mb-5">
+            <div class="font-bold text-lg">
+                <a href="/" class="text-white no-underline">🗳️ Voteka</a>
             </div>
-            <div>
-                <a href="/" style="color: white; text-decoration: none; margin-right: 20px;">Accueil</a>
-                <button id="logoutBtn" style="background-color: #ff4d4d; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; font-weight: bold;">
-                    Déconnexion
+            <div class="flex items-center">
+                <a href="/" class="text-white no-underline mr-5">Accueil</a>
+                <button id="logoutBtn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded cursor-pointer">
+                Déconnexion
                 </button>
             </div>
         </nav>

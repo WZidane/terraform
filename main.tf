@@ -342,6 +342,13 @@ resource "aws_apigatewayv2_route" "get_polls" {
   authorizer_id = aws_apigatewayv2_authorizer.cognito.id
 }
 
+resource "aws_apigatewayv2_route" "get_poll_by_id" {
+  api_id    = aws_apigatewayv2_api.voteka_api.id
+  route_key = "GET /polls/{id}"
+  target    = "integrations/${aws_apigatewayv2_integration.polls_int.id}"
+  authorizer_id = aws_apigatewayv2_authorizer.cognito.id
+}
+
 resource "aws_apigatewayv2_route" "post_polls" {
   api_id       = aws_apigatewayv2_api.voteka_api.id
   route_key    = "POST /polls"
@@ -451,6 +458,19 @@ resource "aws_s3_object" "register_page" {
   content_type = "text/html"
 }
 
+resource "aws_s3_object" "poll_page" {
+  bucket       = aws_s3_bucket.frontend_bucket.id
+  key          = "poll.html"
+  
+  content = templatefile("${path.module}/templates/poll.html.tpl", {
+    user_pool_id = aws_cognito_user_pool.voteka_pool.id,
+    client_id    = aws_cognito_user_pool_client.voteka_client.id
+    api_url      = aws_apigatewayv2_api.voteka_api.api_endpoint
+  })
+  
+  content_type = "text/html"
+}
+
 resource "aws_s3_object" "login_page" {
   bucket       = aws_s3_bucket.frontend_bucket.id
   key          = "login.html"
@@ -516,6 +536,7 @@ resource "null_resource" "invalidate_cache" {
     index_hash    = aws_s3_object.index.etag
     login_hash    = aws_s3_object.login_page.etag
     register_hash = aws_s3_object.register_page.etag
+    poll_hash = aws_s3_object.poll_page.etag
     header_hash   = aws_s3_object.header_js.etag
   }
 

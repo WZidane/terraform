@@ -3,37 +3,36 @@ import json
 import uuid
 from common import response, dynamodb
 
+# On récupère la table via la variable d'env définie dans Terraform
 polls_table = dynamodb.Table(os.environ.get('POLLS_TABLE', 'Polls'))
 
 def lambda_handler(event, context):
-    method = event.get('requestContext', {}).get('http', {}).get('method')
-    path_params = event.get('pathParameters') or {}
+    print("Event reçu:", json.dumps(event))
+    method = event.get('httpMethod')
+    if not method and 'requestContext' in event:
+        method = event['requestContext'].get('http', {}).get('method')
     
-    # GET /polls : Tout le monde peut voir les sondages
+    print(f"Méthode HTTP détectée: {method}")
+    
     if method == 'GET':
         resp = polls_table.scan()
         return response(200, resp.get('Items', []))
 
-    if method == 'GET' and path_params.get('id'):
-        poll_id = path_params['id']
-        resp = polls_table.get_item(Key={'id': poll_id})
-        item = resp.get('Item')
-        if not item:
-            return response(404, {'error': 'Poll not found'})
-        return response(200, item)
-    
-    # POST /polls : Seul un utilisateur connecté peut créer un sondage
+    # Si c'est un POST, on crée un nouveau poll
     if method == 'POST':
-        # L'Authorizer garantit que l'utilisateur est valide
-        body = json.loads(event.get('body', '{}'))
-        name = body.get('name')
-        
-        if not name:
-            return response(400, {'error': "'name' est requis"})
+        try:
+            body = json.loads(event.get('body', '{}'))
+            name = body.get('name')
+            
+            if not name:
+                return response(400, {'error': "'name' est requis"})
 
-        poll_id = str(uuid.uuid4())
-        item = {'id': poll_id, 'name': name}
-        polls_table.put_item(Item=item)
-        return response(201, item)
+            poll_id = str(uuid.uuid4())
+            item = {'id': poll_id, 'name': name}
+            polls_table.put_item(Item=item)
+            return response(201, item)
+        except Exception as e:
+            return response(400, {'error': 'JSON invalide', 'details': str(e)})
 
-    return response(404, {'error': 'not found'})
+
+    return response(405, {'error': f'Methode {method} non autorisée sur cette ressource'})

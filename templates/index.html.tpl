@@ -29,18 +29,30 @@
 <body>
 
     <div class="container">
-        <h1>Polls Voteka</h1>
+        <h1>Élections Voteka</h1>
         <button onclick="chargerPolls()">Actualiser la liste</button>
         
-        <ul id="liste-polls">
-            <li>Appuyez svp</li>
-        </ul>
+        <ul id="liste-polls"></ul>
         <div id="message-erreur" class="error"></div>
     </div>
 
     <script>
-        // Vérifie présence du token Cognito (stocké en localStorage)
-        if (!localStorage.getItem('token')) {
+        const poolData = {
+            UserPoolId: window.VotekaConfig.userPoolId, 
+            ClientId: window.VotekaConfig.clientId,
+        };
+        const userPool = new AmazonCognitoIdentity.CognitoUserPool(poolData);
+
+        const cognitoUser = userPool.getCurrentUser();
+
+        if (cognitoUser != null) {
+            cognitoUser.getSession((err, session) => {
+                if (err || !session.isValid()) {
+                    window.location.href = "login"; // Redirection si session morte
+                    return;
+                }
+            });
+        } else {
             window.location.href = "login";
         }
 

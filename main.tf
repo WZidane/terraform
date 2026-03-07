@@ -177,19 +177,6 @@ function handler(event) {
 EOF
 }
 
-resource "aws_s3_object" "index" {
-  bucket       = aws_s3_bucket.frontend_bucket.id
-  key          = "index.html"
-
-  content = templatefile("${path.module}/templates/index.html.tpl", {
-    user_pool_id = aws_cognito_user_pool.voteka_pool.id,
-    client_id    = aws_cognito_user_pool_client.voteka_client.id,
-    api_url = aws_apigatewayv2_api.voteka_api.api_endpoint
-  })
-  
-  content_type = "text/html"
-}
-
 resource "aws_iam_role" "lambda_role" {
   name = "lambda_role"
 
@@ -461,6 +448,30 @@ resource "aws_s3_object" "login_page" {
   content_type = "text/html"
 }
 
+resource "aws_s3_object" "index" {
+  bucket       = aws_s3_bucket.frontend_bucket.id
+  key          = "index.html"
+
+  content = templatefile("${path.module}/templates/index.html.tpl", {
+    user_pool_id = aws_cognito_user_pool.voteka_pool.id,
+    client_id    = aws_cognito_user_pool_client.voteka_client.id,
+    api_url = aws_apigatewayv2_api.voteka_api.api_endpoint
+  })
+  
+  content_type = "text/html"
+}
+
+resource "aws_s3_object" "create-poll_page" {
+  bucket       = aws_s3_bucket.frontend_bucket.id
+  key          = "create-poll.html"
+  content      = templatefile("${path.module}/templates/create-poll.html.tpl", {
+    user_pool_id = aws_cognito_user_pool.voteka_pool.id,
+    client_id    = aws_cognito_user_pool_client.voteka_client.id,
+    api_url = aws_apigatewayv2_api.voteka_api.api_endpoint
+  })
+  content_type = "text/html"
+}
+
 resource "aws_s3_object" "header_js" {
   bucket       = aws_s3_bucket.frontend_bucket.id
   key          = "header.js"
@@ -517,6 +528,7 @@ resource "null_resource" "invalidate_cache" {
     login_hash    = aws_s3_object.login_page.etag
     register_hash = aws_s3_object.register_page.etag
     header_hash   = aws_s3_object.header_js.etag
+    create_poll_hash = aws_s3_object.create-poll_page.etag
   }
 
   provisioner "local-exec" {

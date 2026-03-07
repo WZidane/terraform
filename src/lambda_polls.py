@@ -18,14 +18,16 @@ def lambda_handler(event, context):
         resp = polls_table.scan()
         return response(200, resp.get('Items', []))
 
-    # Si c'est un POST, on crée un nouveau poll
     if method == 'POST':
         try:
             body = json.loads(event.get('body', '{}'))
             name = body.get('name')
             
             if not name:
-                return response(400, {'error': "'name' est requis"})
+                return response(400, {'error': "l'attribut 'name' est requis"})
+
+            if len(name) > 200:
+                return response(400, {'error': "Le nom ne doit pas dépasser 200 caractères"})
 
             poll_id = str(uuid.uuid4())
             item = {'id': poll_id, 'name': name}

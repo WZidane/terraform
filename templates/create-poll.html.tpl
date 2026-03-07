@@ -29,12 +29,12 @@
 <body>
 
     <div class="container">
-        <h1>Élections Voteka</h1>
-        <button onclick="chargerPolls()">Actualiser la liste</button>
-        <button onclick="javascript:window.location.href='create-poll'">Créer une élection</button>
-        
-        <ul id="liste-polls"></ul>
-        <div id="message-erreur" class="error"></div>
+        <h1>Créer une nouvelle élection</h1>
+        <form id="loginForm" class="space-y-4">
+            <input type="text" id="name" placeholder="Nom de l'élection" class="w-full p-2 border rounded" maxlength="200" required>
+            <button type="submit" class="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600">Créer l'élection</button>
+        </form>
+
     </div>
 
     <script>
@@ -57,36 +57,47 @@
             window.location.href = "login";
         }
 
-        async function chargerPolls() {
+        document.getElementById('loginForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const name = document.getElementById('name').value;
+            createPoll(name);
+        });
+
+        async function createPoll(name) {
             const API_URL = "${api_url}/polls";
-
-            const listeUl = document.getElementById("liste-polls");
-            const erreurDiv = document.getElementById("message-erreur");
-
-            listeUl.innerHTML = "<li>Chargement...</li>";
-            erreurDiv.innerText = "";
-
-            try {
-                const response = await fetch(API_URL, { headers: { 'Authorization': localStorage.getItem('token') || '' } });
-                if (!response.ok) throw new Error("Erreur lors de l'appel API");
-
-                const polls = await response.json();
-
-                if (!Array.isArray(polls) || polls.length === 0) {
-                    listeUl.innerHTML = "<li>Aucun poll trouvé dans la base.</li>";
-                } else {
-                    listeUl.innerHTML = ""; // On vide la liste
-                    polls.forEach(p => {
-                        const li = document.createElement("li");
-                        li.textContent = `ID: $${p.id} - Name: $${p.name || 'N/A'}`;
-                        listeUl.appendChild(li);
-                    });
-                }
-            } catch (err) {
-                console.error(err);
-                listeUl.innerHTML = "";
-                erreurDiv.innerText = "Impossible de joindre l'API. Vérifie l'URL et les CORS.";
+            
+            // Récupération PROPRE du token depuis la session Cognito
+            const cognitoUser = userPool.getCurrentUser();
+            if (!cognitoUser) {
+                window.location.href = "login";
+                return;
             }
+
+            cognitoUser.getSession(async (err, session) => {
+                if (err || !session.isValid()) {
+                    window.location.href = "login";
+                    return;
+                }
+
+                const token = session.getIdToken().getJwtToken();
+
+                try {
+                    const response = await fetch(API_URL, {
+                        method: 'POST',
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'Authorization': token 
+                        },
+                        body: JSON.stringify({ name })
+                    });
+
+                    if (!response.ok) throw new Error("Erreur lors de l'appel API");
+                    const result = await response.json();
+                    alert(`Élection créée ! ID: $${result.id}`);
+                } catch (err) {
+                    console.error(err);
+                }
+            });
         }
     </script>
 </body>

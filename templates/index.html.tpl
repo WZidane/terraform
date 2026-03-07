@@ -23,6 +23,8 @@
         
         <ul id="liste-polls" class="divide-y divide-gray-200 flex flex-col justify-center items-center max-h-96 overflow-y-auto"></ul>
         
+        <button onclick="javascript:window.location.href='create-poll'">Créer une élection</button>
+
         <div id="message-erreur" class="text-red-600 mt-4 text-center font-medium"></div>
     </div>
 

@@ -35,6 +35,20 @@
     };
 
     const userPool = new AmazonCognitoIdentity.CognitoUserPool(poolData);
+
+    const cognitoUser = userPool.getCurrentUser();
+
+    if (cognitoUser != null) {
+        cognitoUser.getSession((err, session) => {
+            if (err || !session.isValid()) {
+                window.location.href = "login";
+                return;
+            } else {
+              window.location.href = "/";
+            }
+        });
+    }
+
     let userEmail = "";
 
     // GESTION DE L'INSCRIPTION

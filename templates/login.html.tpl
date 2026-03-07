@@ -29,6 +29,19 @@
 
     const userPool = new AmazonCognitoIdentity.CognitoUserPool(poolData);
 
+    const cognitoUser = userPool.getCurrentUser();
+
+    if (cognitoUser != null) {
+        cognitoUser.getSession((err, session) => {
+            if (err || !session.isValid()) {
+                window.location.href = "login";
+                return;
+            } else {
+              window.location.href = "/";
+            }
+        });
+    }
+
     document.getElementById("loginForm").addEventListener("submit", (e) => {
       e.preventDefault();
       

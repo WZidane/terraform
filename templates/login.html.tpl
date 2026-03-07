@@ -16,7 +16,7 @@
       <button type="submit" class="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600">Se connecter</button>
     </form>
     
-    <p class="mt-4 text-center text-sm">Pas de compte ? <a href="register.html" class="text-blue-500">S'inscrire</a></p>
+    <p class="mt-4 text-center text-sm">Pas de compte ? <a href="register" class="text-blue-500">S'inscrire</a></p>
     <p id="message" class="mt-2 text-center text-red-500 text-sm"></p>
   </div>
 
@@ -70,7 +70,7 @@
           localStorage.setItem("token", accessToken);
           
           console.log("Connexion réussie !");
-          window.location.href = "index.html"; // Redirige vers l'index ou profil
+          window.location.href = "index"; // Redirige vers l'index ou profil
         },
 
         onFailure: function(err) {

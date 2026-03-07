@@ -24,7 +24,7 @@
       <button type="submit" class="w-full bg-green-500 text-white p-2 rounded hover:bg-green-600">Confirmer mon compte</button>
     </form>
 
-    <p class="mt-4 text-center text-sm">Déjà un compte ? <a href="login.html" class="text-blue-500">Connexion</a></p>
+    <p class="mt-4 text-center text-sm">Déjà un compte ? <a href="login" class="text-blue-500">Connexion</a></p>
     <p id="message" class="mt-2 text-center text-sm"></p>
   </div>
 
@@ -99,7 +99,7 @@
         }
         message.textContent = "Compte validé ! Redirection vers la connexion...";
         message.className = "mt-2 text-center text-green-500";
-        setTimeout(() => window.location.href = "login.html", 2000);
+        setTimeout(() => window.location.href = "login", 2000);
       });
     });
   </script>

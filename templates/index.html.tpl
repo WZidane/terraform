@@ -29,7 +29,7 @@
 <body>
 
     <div class="container">
-        <h1>Polls Voteka</h1>
+        <h1>Élections Voteka</h1>
         <button onclick="chargerPolls()">Actualiser la liste</button>
         
         <ul id="liste-polls"></ul>

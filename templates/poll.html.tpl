@@ -21,7 +21,7 @@
     <div class="max-w-3xl mx-auto p-6 bg-white rounded-lg shadow-md mt-8">
         <h1 id="title" class="text-3xl font-bold text-gray-800 mb-4 text-center"></h1>
 
-        <div id="info"></div>
+        <div id="info" class="flex justify-center items-center mt-5"></div>
         
         <div id="message-erreur" class="text-red-600 mt-4 text-center font-medium"></div>
     </div>
@@ -33,6 +33,8 @@
         };
         const userPool = new AmazonCognitoIdentity.CognitoUserPool(poolData);
 
+        let userId = null;
+
         const cognitoUser = userPool.getCurrentUser();
 
         if (cognitoUser != null) {
@@ -41,7 +43,11 @@
                     window.location.href = "login"; // Redirection si session morte
                     return;
                 }
-            });
+
+                const idToken = session.getIdToken().getJwtToken();
+                const claims = session.getIdToken().decodePayload();
+                userId = claims.sub;
+            })
         } else {
             window.location.href = "login";
         }
@@ -55,6 +61,7 @@
             const params = new URLSearchParams(window.location.search);
 
             const API_URL = "${api_url}/polls/" + params.get("id");
+            const API_URL_2 = "${api_url}/application/" + params.get("id") + "/" + userId;
 
             const erreurDiv = document.getElementById("message-erreur");
 
@@ -70,7 +77,14 @@
                     info.innerHTML = "Poll inconnu.";
                 } else {
                     info.innerHTML = "";
-                    title.innerHTML = "Élection " + polls.name;
+                    title.innerHTML = "Élection : " + polls.name;
+
+                    const ahref = document.createElement('a');
+                    ahref.classList = "bg-blue-500 text-center text-white my-3 w-50 p-3 h-min rounded-lg shadow-md hover:bg-white hover:text-blue-500 hover:shadow-lg transition duration-300";
+                    ahref.href = "#";
+                    ahref.textContent = "Candidatez !";
+
+                    info.appendChild(ahref);
                 }
             } catch (err) {
                 console.error(err);

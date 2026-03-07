@@ -19,39 +19,43 @@
 <body>
 
     <div class="container">
-        <h1>Candidats Voteka</h1>
-        <button onclick="chargerCandidats()">Actualiser la liste</button>
+        <h1>Polls Voteka</h1>
+        <button onclick="chargerPolls()">Actualiser la liste</button>
         
-        <ul id="liste-candidats">
+        <ul id="liste-polls">
             <li>Appuyez svp</li>
         </ul>
         <div id="message-erreur" class="error"></div>
     </div>
 
     <script>
-        async function chargerCandidats() {
-            const API_URL = "${api_url}/candidats"; 
-            
-            const listeUl = document.getElementById("liste-candidats");
+        // Vérifie présence du token Cognito (stocké en localStorage)
+        if (!localStorage.getItem('token')) {
+            window.location.href = "login.html";
+        }
+
+        async function chargerPolls() {
+            const API_URL = "${api_url}/polls";
+
+            const listeUl = document.getElementById("liste-polls");
             const erreurDiv = document.getElementById("message-erreur");
-            
+
             listeUl.innerHTML = "<li>Chargement...</li>";
             erreurDiv.innerText = "";
 
             try {
-                const response = await fetch(API_URL);
+                const response = await fetch(API_URL, { headers: { 'Authorization': localStorage.getItem('token') || '' } });
                 if (!response.ok) throw new Error("Erreur lors de l'appel API");
-                
-                const candidats = await response.json();
 
-                if (candidats.length === 0) {
-                    listeUl.innerHTML = "<li>Aucun candidat trouvé dans la base.</li>";
+                const polls = await response.json();
+
+                if (!Array.isArray(polls) || polls.length === 0) {
+                    listeUl.innerHTML = "<li>Aucun poll trouvé dans la base.</li>";
                 } else {
                     listeUl.innerHTML = ""; // On vide la liste
-                    candidats.forEach(c => {
+                    polls.forEach(p => {
                         const li = document.createElement("li");
-                        // On affiche l'id ou le nom selon ce que tu as mis en DB
-                        li.textContent = `ID: $${c.id} $${c.nom ? "- Nom: " + c.nom : ""}`;
+                        li.textContent = `ID: $${p.id} - Name: $${p.name || 'N/A'}`;
                         listeUl.appendChild(li);
                     });
                 }

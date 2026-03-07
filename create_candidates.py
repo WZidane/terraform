@@ -5,7 +5,7 @@ from reportlab.pdfgen import canvas
 
 # --- CONFIGURATION ---
 BUCKET_NAME = "voteka-documents-2cb8dfe1"
-DYNAMODB_TABLE = "Candidats"
+DYNAMODB_TABLE = "Users"
 REGION = "eu-north-1"
 
 candidates = [
@@ -37,7 +37,7 @@ def create_candidate_pdf(filename, candidate_name, campaign_text):
 
 # --- SCRIPT PRINCIPAL ---
 for cand in candidates:
-    candidate_id = str(uuid.uuid4())
+    user_id = str(uuid.uuid4())
     pdf_filename = f"{cand['name'].replace(' ', '_')}.pdf"
     
     # Générer PDF
@@ -46,13 +46,13 @@ for cand in candidates:
     # Upload S3
     s3_key = f"{pdf_filename}"
     s3.upload_file(pdf_filename, BUCKET_NAME, s3_key)
-    s3_url = f"s3://{BUCKET_NAME}/{s3_key}"
+    s3_url = f`s3://{BUCKET_NAME}/{s3_key}`
     
-    # Ajouter item DynamoDB
+    # Ajouter item DynamoDB (Users)
     table.put_item(Item={
-        "id": candidate_id,
+        "id": user_id,
         "name": cand["name"],
         "document_s3": s3_url
     })
     
-    print(f"Candidat créé : {cand['name']} avec ID {candidate_id} et document {s3_url}")
+    print(f"User créé : {cand['name']} avec ID {user_id} et document {s3_url}")

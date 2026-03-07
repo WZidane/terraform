@@ -1,9 +1,9 @@
 provider "aws" {
-  region = "eu-north-1"
+  region = var.aws_region
 }
 
-resource "aws_dynamodb_table" "candidats" {
-  name           = "Candidats"
+resource "aws_dynamodb_table" "users" {
+  name           = "Users"
   billing_mode   = "PAY_PER_REQUEST"
   hash_key       = "id"
 
@@ -34,8 +34,24 @@ resource "aws_dynamodb_table" "votes" {
   }
 }
 
+resource "aws_dynamodb_table" "polls" {
+  name           = "Polls"
+  billing_mode   = "PAY_PER_REQUEST"
+  hash_key       = "id"
+
+  attribute {
+    name = "id"
+    type = "S"
+  }
+
+  tags = {
+    Environment = "Dev"
+    Project     = "Voteka"
+  }
+}
+
 resource "random_id" "bucket_suffix" {
-  byte_length = 4
+  byte_length = var.bucket_suffix_byte_length
 }
 
 resource "aws_s3_bucket" "documents" {
@@ -188,12 +204,14 @@ resource "aws_iam_role_policy" "lambda_dynamo_access" {
         Action = [
           "dynamodb:Scan",
           "dynamodb:GetItem",
-          "dynamodb:Query"
+          "dynamodb:Query",
+          "dynamodb:PutItem"
         ]
 
         Resource = [
-          aws_dynamodb_table.candidats.arn,
-          aws_dynamodb_table.votes.arn
+          aws_dynamodb_table.users.arn,
+          aws_dynamodb_table.votes.arn,
+          aws_dynamodb_table.polls.arn
         ]
       }
     ]
@@ -202,22 +220,62 @@ resource "aws_iam_role_policy" "lambda_dynamo_access" {
 
 data "archive_file" "lambda" {
   type        = "zip"
-  source_file  = "${path.module}/src/lambda.py"
+  source_dir  = "${path.module}/src"
   output_path = "lambda_function_src.zip"
 }
 
-resource "aws_lambda_function" "voteka_lambda" {
-  function_name = "voteka_handler"
+resource "aws_lambda_function" "users_lambda" {
+  function_name = "voteka_users_handler"
   filename      = data.archive_file.lambda.output_path
   source_code_hash = data.archive_file.lambda.output_base64sha256
 
   role    = aws_iam_role.lambda_role.arn
   runtime = "python3.11"
-  handler = "lambda.lambda_handler"
+  handler = "lambda_users.lambda_handler"
 
   environment {
     variables = {
-      CANDIDATS_TABLE = aws_dynamodb_table.candidats.name
+      USERS_TABLE = aws_dynamodb_table.users.name
+      COGNITO_USER_POOL_ID = aws_cognito_user_pool.voteka_pool.id
+      COGNITO_REGION = var.cognito_region
+    }
+  }
+}
+
+resource "aws_lambda_function" "polls_lambda" {
+  function_name = "voteka_polls_handler"
+  filename      = data.archive_file.lambda.output_path
+  source_code_hash = data.archive_file.lambda.output_base64sha256
+
+  role    = aws_iam_role.lambda_role.arn
+  runtime = "python3.11"
+  handler = "lambda_polls.lambda_handler"
+
+  environment {
+    variables = {
+      POLLS_TABLE = aws_dynamodb_table.polls.name
+      COGNITO_USER_POOL_ID = aws_cognito_user_pool.voteka_pool.id
+      COGNITO_REGION = var.cognito_region
+    }
+  }
+}
+
+resource "aws_lambda_function" "votes_lambda" {
+  function_name = "voteka_votes_handler"
+  filename      = data.archive_file.lambda.output_path
+  source_code_hash = data.archive_file.lambda.output_base64sha256
+
+  role    = aws_iam_role.lambda_role.arn
+  runtime = "python3.11"
+  handler = "lambda_votes.lambda_handler"
+
+  environment {
+    variables = {
+      VOTES_TABLE = aws_dynamodb_table.votes.name
+      USERS_TABLE = aws_dynamodb_table.users.name
+      POLLS_TABLE = aws_dynamodb_table.polls.name
+      COGNITO_USER_POOL_ID = aws_cognito_user_pool.voteka_pool.id
+      COGNITO_REGION = var.cognito_region
     }
   }
 }
@@ -240,24 +298,76 @@ resource "aws_apigatewayv2_stage" "default" {
   auto_deploy = true
 }
 
-resource "aws_apigatewayv2_integration" "lambda_int" {
+resource "aws_apigatewayv2_integration" "users_int" {
   api_id           = aws_apigatewayv2_api.voteka_api.id
   integration_type = "AWS_PROXY"
-  integration_uri  = aws_lambda_function.voteka_lambda.invoke_arn
+  integration_uri  = aws_lambda_function.users_lambda.invoke_arn
+}
+
+resource "aws_apigatewayv2_integration" "polls_int" {
+  api_id           = aws_apigatewayv2_api.voteka_api.id
+  integration_type = "AWS_PROXY"
+  integration_uri  = aws_lambda_function.polls_lambda.invoke_arn
+}
+
+resource "aws_apigatewayv2_integration" "votes_int" {
+  api_id           = aws_apigatewayv2_api.voteka_api.id
+  integration_type = "AWS_PROXY"
+  integration_uri  = aws_lambda_function.votes_lambda.invoke_arn
 }
 
 # route
-resource "aws_apigatewayv2_route" "get_candidats" {
+resource "aws_apigatewayv2_route" "get_users" {
   api_id    = aws_apigatewayv2_api.voteka_api.id
-  route_key = "GET /candidats"
-  target    = "integrations/${aws_apigatewayv2_integration.lambda_int.id}"
+  route_key = "GET /users"
+  target    = "integrations/${aws_apigatewayv2_integration.users_int.id}"
+}
+
+resource "aws_apigatewayv2_route" "get_polls" {
+  api_id    = aws_apigatewayv2_api.voteka_api.id
+  route_key = "GET /polls"
+  target    = "integrations/${aws_apigatewayv2_integration.polls_int.id}"
+}
+
+resource "aws_apigatewayv2_route" "post_polls" {
+  api_id    = aws_apigatewayv2_api.voteka_api.id
+  route_key = "POST /polls"
+  target    = "integrations/${aws_apigatewayv2_integration.polls_int.id}"
+}
+
+resource "aws_apigatewayv2_route" "get_votes" {
+  api_id    = aws_apigatewayv2_api.voteka_api.id
+  route_key = "GET /votes"
+  target    = "integrations/${aws_apigatewayv2_integration.votes_int.id}"
+}
+
+resource "aws_apigatewayv2_route" "post_votes" {
+  api_id    = aws_apigatewayv2_api.voteka_api.id
+  route_key = "POST /votes"
+  target    = "integrations/${aws_apigatewayv2_integration.votes_int.id}"
 }
 
 # permission
-resource "aws_lambda_permission" "api_gw" {
-  statement_id  = "AllowExecutionFromAPIGateway"
+resource "aws_lambda_permission" "api_gw_users" {
+  statement_id  = "AllowExecutionFromAPIGatewayUsers"
   action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.voteka_lambda.function_name
+  function_name = aws_lambda_function.users_lambda.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.voteka_api.execution_arn}/*/*"
+}
+
+resource "aws_lambda_permission" "api_gw_polls" {
+  statement_id  = "AllowExecutionFromAPIGatewayPolls"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.polls_lambda.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.voteka_api.execution_arn}/*/*"
+}
+
+resource "aws_lambda_permission" "api_gw_votes" {
+  statement_id  = "AllowExecutionFromAPIGatewayVotes"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.votes_lambda.function_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.voteka_api.execution_arn}/*/*"
 }
@@ -392,27 +502,4 @@ resource "null_resource" "invalidate_cache" {
   provisioner "local-exec" {
     command = "aws cloudfront create-invalidation --distribution-id ${aws_cloudfront_distribution.s3_distribution.id} --paths '/*'"
   }
-}
-
-output "cognito_user_pool_id" {
-  value = aws_cognito_user_pool.voteka_pool.id
-}
-
-output "cognito_client_id" {
-  value = aws_cognito_user_pool_client.voteka_client.id
-}
-
-output "url_api" {
-  description = "URL de l'API à appeler en JS :"
-  value       = "${aws_apigatewayv2_api.voteka_api.api_endpoint}/candidats"
-}
-
-# output "url_du_site" {
-#   description = "Lien pour accéder au site :"
-#   value       = "http://${aws_s3_bucket_website_configuration.web_config.website_endpoint}"
-# }
-
-output "url_du_site" {
-  description = "Lien pour accéder au site :"
-  value       = "https://${aws_cloudfront_distribution.s3_distribution.domain_name}"
 }

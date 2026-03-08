@@ -89,6 +89,17 @@ resource "aws_s3_bucket" "documents" {
   }
 }
 
+resource "aws_s3_bucket_cors_configuration" "documents_cors" {
+  bucket = aws_s3_bucket.documents.id
+
+  cors_rule {
+    allowed_headers = ["*"]
+    allowed_methods = ["PUT", "POST", "GET"]
+    allowed_origins = ["*"]
+    max_age_seconds = 3000
+  }
+}
+
 # Bucket S3 pour le frontend
 resource "aws_s3_bucket" "frontend_bucket" {
   bucket = "voteka-${random_id.bucket_suffix.hex}"
@@ -197,8 +208,8 @@ resource "aws_iam_role_policy_attachment" "lambda_logs" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
-resource "aws_iam_role_policy" "lambda_dynamo_access" {
-  name = "lambda_dynamo_access"
+resource "aws_iam_role_policy" "lambda_combined_access" {
+  name = "lambda_combined_access"
   role = aws_iam_role.lambda_role.id
 
   policy = jsonencode({
@@ -213,13 +224,17 @@ resource "aws_iam_role_policy" "lambda_dynamo_access" {
           "dynamodb:PutItem",
           "dynamodb:UpdateItem",
         ]
-
         Resource = [
           aws_dynamodb_table.votes.arn,
           aws_dynamodb_table.polls.arn,
-          aws_dynamodb_table.application.arn, 
-          aws_dynamodb_table.documents.arn    
+          aws_dynamodb_table.application.arn,
+          aws_dynamodb_table.documents.arn
         ]
+      },
+      {
+        Effect = "Allow"
+        Action = ["s3:PutObject"]
+        Resource = "${aws_s3_bucket.documents.arn}/*"
       }
     ]
   })
@@ -242,9 +257,11 @@ resource "aws_lambda_function" "polls_lambda" {
 
   environment {
     variables = {
-      POLLS_TABLE = aws_dynamodb_table.polls.name
+      POLLS_TABLE          = aws_dynamodb_table.polls.name
+      APPLICATION_TABLE    = aws_dynamodb_table.application.name
+      BUCKET_NAME          = aws_s3_bucket.documents.id  
       COGNITO_USER_POOL_ID = aws_cognito_user_pool.voteka_pool.id
-      COGNITO_REGION = var.cognito_region
+      COGNITO_REGION       = var.cognito_region
     }
   }
 }
@@ -366,6 +383,20 @@ resource "aws_apigatewayv2_route" "post_votes" {
   api_id       = aws_apigatewayv2_api.voteka_api.id
   route_key    = "POST /votes"
   target       = "integrations/${aws_apigatewayv2_integration.votes_int.id}"
+  authorizer_id = aws_apigatewayv2_authorizer.cognito.id
+}
+
+resource "aws_apigatewayv2_route" "get_s3_url" {
+  api_id    = aws_apigatewayv2_api.voteka_api.id
+  route_key = "GET /get-presigned-url"
+  target    = "integrations/${aws_apigatewayv2_integration.polls_int.id}"
+  authorizer_id = aws_apigatewayv2_authorizer.cognito.id
+}
+
+resource "aws_apigatewayv2_route" "post_application" {
+  api_id    = aws_apigatewayv2_api.voteka_api.id
+  route_key = "POST /application/{id}/{userId}"
+  target    = "integrations/${aws_apigatewayv2_integration.polls_int.id}"
   authorizer_id = aws_apigatewayv2_authorizer.cognito.id
 }
 

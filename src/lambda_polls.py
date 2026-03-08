@@ -1,10 +1,13 @@
 import os
 import json
 import uuid
+import boto3
 from common import response, dynamodb
 
-# On récupère la table via la variable d'env définie dans Terraform
-polls_table = dynamodb.Table(os.environ.get('POLLS_TABLE', 'Polls'))
+# Tables et Clients
+polls_table = dynamodb.Table(os.environ.get('POLLS_TABLE'))
+app_table = dynamodb.Table(os.environ.get('APPLICATION_TABLE'))
+s3_client = boto3.client('s3')
 
 def lambda_handler(event, context):
     method = event.get('httpMethod')
@@ -22,7 +25,25 @@ def lambda_handler(event, context):
 
     print(f"sub : {user_id}")
     
-    if method == 'GET':
+    # --- 1. ROUTE: GET /get-presigned-url ---
+    if method == 'GET' and 'get-presigned-url' in path:
+        file_name = event.get('queryStringParameters', {}).get('filename', str(uuid.uuid4()))
+        try:
+            url = s3_client.generate_presigned_url(
+                'put_object',
+                Params={
+                    'Bucket': os.environ['BUCKET_NAME'],
+                    'Key': f"candidatures/{file_name}"
+                },
+                ExpiresIn=300
+            )
+            return response(200, {'upload_url': url})
+        except Exception as e:
+            return response(500, {'error': str(e)})
+
+    # --- 2. ROUTE: POST /application/{id}/{userId} ---
+    # On utilise 'in path' car le rawPath contient les IDs réels
+    if method == 'POST' and '/application/' in path:
         poll_id = path_params.get('id')
         if poll_id:
             # GET /polls/{id} -> récupérer un poll spécifique
@@ -44,6 +65,7 @@ def lambda_handler(event, context):
 
             body = json.loads(event.get('body', '{}'))
             name = body.get('name')
+            if not name: return response(400, {'error': 'Name required'})
             
             if not name:
                 return response(400, {'error': "l'attribut 'name' est requis"})
@@ -93,4 +115,5 @@ def lambda_handler(event, context):
         except Exception as e:
             return response(400, {'error': "Erreur lors de la cloture de l'élection", 'details': str(e)})
 
-    return response(405, {'error': f'Methode {method} non autorisée sur cette ressource'})
+    # Si aucune route ne correspond
+    return response(405, {'error': f'Method {method} not allowed on {path}'})

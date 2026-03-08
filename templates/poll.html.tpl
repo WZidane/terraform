@@ -21,7 +21,7 @@
     <div class="max-w-3xl mx-auto p-6 bg-white rounded-lg shadow-md mt-8">
         <div id="admin-actions" class="flex justify-end mb-4"></div>
 
-        <h1 id="title" class="text-3xl font-bold text-gray-800 mb-4 text-center"></h1>
+        <h1 id="title" class="text-3xl font-bold text-gray-800 mb-4 text-center">Chargement...</h1>
 
         <div id="info" class="flex justify-center items-center mt-5"></div>
         

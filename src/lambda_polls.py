@@ -94,6 +94,7 @@ def lambda_handler(event, context):
         counts = defaultdict(int)
 
         rep = votes_table.query(
+            IndexName="PollVotesIndex",
             KeyConditionExpression=Key("poll_id").eq(poll_id)
         )
 
@@ -112,7 +113,7 @@ def lambda_handler(event, context):
         for candidate_id, vote_count in counts.items():
 
             applications_table.update_item(
-                Key={"user_id": candidate_id},
+                Key={"user_id": candidate_id, "poll_id": poll_id},
                 UpdateExpression="SET votes = :v",
                 ExpressionAttributeValues={
                     ":v": vote_count

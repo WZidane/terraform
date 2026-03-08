@@ -116,6 +116,12 @@ def lambda_handler(event, context):
 
         items = resp.get("Items", [])
 
+        for item in items:
+            if 'votes' in item:
+                item['votes'] = int(item['votes'])
+        
+        print(f"Applications pour le poll {poll_id} : {items}")
+
         return response(200, items)
 
     # -----------------------------
@@ -154,8 +160,6 @@ def lambda_handler(event, context):
         given_name = claims.get('given_name') or claims.get('custom:given_name', '')
         family_name = claims.get('family_name') or claims.get('custom:family_name', '')
         creator_name = f"{given_name} {family_name}".strip()
-        print(f"DEBUG CLAIMS FULL: {json.dumps(claims)}")
-        print(f"Bonjour, voici le nom du candidat : {creator_name}")
 
         item = {
             "id": application_id,

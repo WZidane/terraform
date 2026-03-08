@@ -210,7 +210,8 @@ resource "aws_iam_role_policy" "lambda_dynamo_access" {
           "dynamodb:Scan",
           "dynamodb:GetItem",
           "dynamodb:Query",
-          "dynamodb:PutItem"
+          "dynamodb:PutItem",
+          "dynamodb:UpdateItem",
         ]
 
         Resource = [
@@ -325,6 +326,7 @@ resource "aws_apigatewayv2_authorizer" "cognito" {
 resource "aws_apigatewayv2_route" "get_polls" {
   api_id       = aws_apigatewayv2_api.voteka_api.id
   route_key    = "GET /polls"
+  authorization_type = "JWT"
   target       = "integrations/${aws_apigatewayv2_integration.polls_int.id}"
   authorizer_id = aws_apigatewayv2_authorizer.cognito.id
 }
@@ -332,6 +334,7 @@ resource "aws_apigatewayv2_route" "get_polls" {
 resource "aws_apigatewayv2_route" "get_poll_by_id" {
   api_id    = aws_apigatewayv2_api.voteka_api.id
   route_key = "GET /polls/{id}"
+  authorization_type = "JWT"
   target    = "integrations/${aws_apigatewayv2_integration.polls_int.id}"
   authorizer_id = aws_apigatewayv2_authorizer.cognito.id
 }
@@ -340,6 +343,15 @@ resource "aws_apigatewayv2_route" "post_polls" {
   api_id       = aws_apigatewayv2_api.voteka_api.id
   route_key    = "POST /polls"
   target       = "integrations/${aws_apigatewayv2_integration.polls_int.id}"
+  authorization_type = "JWT"
+  authorizer_id = aws_apigatewayv2_authorizer.cognito.id
+}
+
+resource "aws_apigatewayv2_route" "put_polls" {
+  api_id       = aws_apigatewayv2_api.voteka_api.id
+  route_key    = "PUT /polls/{id}"
+  target       = "integrations/${aws_apigatewayv2_integration.polls_int.id}"
+  authorization_type = "JWT"
   authorizer_id = aws_apigatewayv2_authorizer.cognito.id
 }
 

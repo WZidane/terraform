@@ -19,6 +19,8 @@
 <body>
 
     <div class="max-w-3xl mx-auto p-6 bg-white rounded-lg shadow-md mt-8">
+        <div id="admin-actions" class="flex justify-end mb-4"></div>
+
         <h1 id="title" class="text-3xl font-bold text-gray-800 mb-4 text-center"></h1>
 
         <div id="info" class="flex justify-center items-center mt-5"></div>
@@ -56,6 +58,8 @@
 
             const title = document.getElementById('title');
 
+            const adminActions = document.getElementById('admin-actions');
+
             const info = document.getElementById('info');
 
             const params = new URLSearchParams(window.location.search);
@@ -67,24 +71,49 @@
 
             erreurDiv.innerText = "";
 
+            const session = await new Promise((resolve, reject) => {
+                cognitoUser.getSession((err, session) => err ? reject(err) : resolve(session));
+            });
+            const token = session.getIdToken().getJwtToken();
+
             try {
-                const response = await fetch(API_URL, { headers: { 'Authorization': localStorage.getItem('token') || '' } });
+                // const response = await fetch(API_URL, { headers: { 'Authorization': localStorage.getItem('token') || '' } });
+                const response = await fetch(API_URL, { headers: { 'Authorization': token } });
                 if (!response.ok) throw new Error("Erreur lors de l'appel API");
 
-                const polls = await response.json();
+                const poll = await response.json();
 
-                if (!polls) {
+                if (!poll) {
                     info.innerHTML = "Poll inconnu.";
                 } else {
                     info.innerHTML = "";
-                    title.innerHTML = "Élection : " + polls.name;
+                    title.innerHTML = "Élection : " + poll.name;
+                    
+                    const creatorDiv = document.createElement('p');
+                    creatorDiv.className = "text-sm text-gray-500 mb-6 text-center";
+                    creatorDiv.textContent = "Créée par : " + (poll.creator_name || "Utilisateur inconnu");
+                    title.parentNode.insertBefore(creatorDiv, title.nextSibling);
+                    
+                    if(poll.is_active) {
+                        const ahref = document.createElement('a');
+                        ahref.classList = "bg-blue-500 text-center text-white my-3 w-50 p-3 h-min rounded-lg shadow-md hover:bg-white hover:text-blue-500 hover:shadow-lg transition duration-300";
+                        ahref.href = "#";
+                        ahref.textContent = "Candidatez !";
 
-                    const ahref = document.createElement('a');
-                    ahref.classList = "bg-blue-500 text-center text-white my-3 w-50 p-3 h-min rounded-lg shadow-md hover:bg-white hover:text-blue-500 hover:shadow-lg transition duration-300";
-                    ahref.href = "#";
-                    ahref.textContent = "Candidatez !";
+                        if (userId && poll.creator_id === userId) {
+                            const btnTerminer = document.createElement('button');
+                            btnTerminer.classList = "bg-red-600 text-white px-4 py-2 rounded-md shadow hover:bg-red-700 transition duration-300 text-sm font-bold";
+                            btnTerminer.textContent = "Terminer cette élection";
+                    
+                            btnTerminer.onclick = () => terminerElection(params.get("id"), token);
+                            
+                            adminActions.appendChild(btnTerminer);
+                        }
 
-                    info.appendChild(ahref);
+                        info.appendChild(ahref);
+                    } else {
+                        info.innerHTML = "<p class='text-gray-500 italic'>Cette élection est terminée.</p>";
+                    }
                 }
             } catch (err) {
                 console.error(err);
@@ -94,6 +123,28 @@
         }
 
         chargerPoll();
+
+        async function terminerElection(pollId, token) {
+            if (!confirm("Es-tu sûr de vouloir clôturer cette élection ?")) return;
+
+            try {
+                const response = await fetch("${api_url}/polls/" + pollId, {
+                    method: 'PUT',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': token 
+                    },
+                    body: JSON.stringify({ is_active: false })
+                });
+
+                if (!response.ok) throw new Error("Erreur lors de la clôture");
+                
+                alert("Élection terminée avec succès !");
+                location.reload(); // On recharge pour voir le changement de statut
+            } catch (err) {
+                alert(err.message);
+            }
+        }
     </script>
 </body>
 </html>

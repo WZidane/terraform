@@ -252,9 +252,6 @@
                 // 1. Si fichier présent -> Upload S3
                 if (file) {
                     docId = Date.now() + "-" + file.name.replace(/\s+/g, '_');
-                    // const preRes = await fetch(`${api_url}/get-presigned-url?filename=` + docId, {
-                    //     headers: { 'Authorization': localStorage.getItem('token') }
-                    // });
                     const preRes = await fetch(`${api_url}/get-presigned-url?filename=` + docId, {
                         headers: { 'Authorization': token }
                     });

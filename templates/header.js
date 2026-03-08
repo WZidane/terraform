@@ -42,7 +42,7 @@ function createHeader() {
 
                 const givenName = attributes.find(attr => attr.Name === "given_name");
                 if (givenName) {
-                    document.getElementById('user').appendChild(givenName);
+                    document.getElementById('user').textContent = givenName.Value;
                 }
             });
         })

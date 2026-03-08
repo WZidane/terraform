@@ -200,7 +200,7 @@
                         });
                         const token = session.getIdToken().getJwtToken();
 
-                        const res = await fetch(`${api_url}/applications/` + params.get("id"), {
+                        const res = await fetch(`${api_url}/applications/polls/` + params.get("id"), {
                             method: 'GET',
                             headers: { 
                                 'Authorization': token,

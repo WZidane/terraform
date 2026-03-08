@@ -452,7 +452,7 @@ resource "aws_apigatewayv2_route" "get_applications" {
 
 resource "aws_apigatewayv2_route" "get_applications_poll" {
   api_id    = aws_apigatewayv2_api.voteka_api.id
-  route_key = "GET /applications/poll/{id}"
+  route_key = "GET /applications/polls/{id}"
   target    = "integrations/${aws_apigatewayv2_integration.applications_int.id}"
   authorization_type = "JWT"
   authorizer_id = aws_apigatewayv2_authorizer.cognito.id

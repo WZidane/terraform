@@ -56,7 +56,7 @@ def lambda_handler(event, context):
             return response(500, {"error": str(e)})
         
 
-    if method == "GET":
+    if method == "GET" and "applications" in path and "polls" in path:
 
         poll_id = path_params.get("id")
 

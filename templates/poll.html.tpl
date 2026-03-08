@@ -23,6 +23,8 @@
 
         <h1 id="title" class="text-3xl font-bold text-gray-800 mb-4 text-center">Chargement...</h1>
 
+        <div id="winner" class="flex justify-center items-center mt-5"></div>
+
         <div id="info" class="flex justify-center items-center mt-5"></div>
         
         <div id="message-erreur" class="text-red-600 mt-4 text-center font-medium"></div>
@@ -93,6 +95,7 @@
         }
 
         const params = new URLSearchParams(window.location.search);
+        let arrayVotes = [];
 
         async function chargerApplications() {
             const listContainer = document.getElementById('applications-list');
@@ -126,10 +129,20 @@
 
                 listContainer.innerHTML = ""; // On vide le loader
 
+                let appvotes = "";
+
                 applications.forEach(app => {
                     const card = document.createElement('div');
                     card.className = "bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center";
                     
+                    if(!window.currentPoll.is_active) {
+                        appvotes = `<div>Votes : $${app.votes || 0}</div>`;
+                        arrayVotes.push({
+                            name: `$${app.candidate_name}`,
+                            votes: `$${app.votes || 0}`
+                        });
+                    }
+
                     const voteButtonHtml = !hasVoted ? `
                         <button onclick="voterPourCandidat('$${app.user_id}')" class="bg-green-600 text-white px-4 py-1.5 rounded-lg text-sm font-bold hover:bg-green-700 transition cursor-pointer shadow-sm">
                             Voter pour ce candidat
@@ -145,7 +158,7 @@
                                 <p class="font-semibold text-gray-800">$${app.candidate_name || "Candidat Anonyme"}</p>
                             </div>
                         </div>
-                        <div>Votes : $${app.votes || 0}</div>
+                        $${appvotes}
                         <div class="flex items-center gap-4">
                             $${voteButtonHtml}
                             $${app.document_id ? `
@@ -162,6 +175,12 @@
                 console.error(err);
                 listContainer.innerHTML = "<p class='text-red-500'>Erreur lors du chargement des candidats.</p>";
             }
+
+            let winner = arrayVotes.reduce((max, candidate) =>
+                candidate.votes > max.votes ? candidate : max
+            );
+
+            document.getElementById('winner').innerHTML = "Le gagnant est " + winner.name + " avec " + winner.votes + " voix.";
         }
 
         async function chargerPoll() {
@@ -188,6 +207,8 @@
                 if (!response.ok) throw new Error("Erreur lors de l'appel API");
 
                 const poll = await response.json();
+
+                window.currentPoll = poll;
 
                 if (!poll) {
                     info.innerHTML = "Poll inconnu.";

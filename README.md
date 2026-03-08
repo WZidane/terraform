@@ -9,7 +9,7 @@ Waïl ZIDANE
 
 [![Contributors](https://contrib.rocks/image?repo=WZidane/terraform)](https://github.com/WZidane/terraform/graphs/contributors)
 
-### Lancer le projet
+## Lancer le projet
 
 1. Initialiser Terraform :
 
@@ -22,6 +22,6 @@ terraform init
 ```bash
 terraform apply
 ```
-### ⚠️ Attention
+## ⚠️ Attention
 
 - Lors de l'inscription sur la démo, l'email utilisée doit être correcte afin de pouvoir récupérer un code de vérification pour l'authentification.

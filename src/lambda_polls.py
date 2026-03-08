@@ -2,10 +2,14 @@ import os
 import json
 import uuid
 import boto3
+from boto3.dynamodb.conditions import Key
+from collections import defaultdict
 from common import response, dynamodb
 
 # Tables et Clients
 polls_table = dynamodb.Table(os.environ.get('POLLS_TABLE'))
+applications_table = dynamodb.Table(os.environ.get("APPLICATIONS_TABLE"))
+votes_table = dynamodb.Table(os.environ.get("VOTES_TABLE"))
 s3_client = boto3.client('s3')
 
 def lambda_handler(event, context):
@@ -87,6 +91,34 @@ def lambda_handler(event, context):
         if existing_poll.get('creator_id') != user_id:
             return response(403, {'error': "Accès refusé : vous n'êtes pas le créateur de cette élection"})
         
+        counts = defaultdict(int)
+
+        rep = votes_table.query(
+            KeyConditionExpression=Key("poll_id").eq(poll_id)
+        )
+
+        while True:
+            for item in rep["Items"]:
+                counts[item["candidate_id"]] += 1
+
+            if "LastEvaluatedKey" not in rep:
+                break
+
+            rep = votes_table.query(
+                KeyConditionExpression=Key("poll_id").eq(poll_id),
+                ExclusiveStartKey=rep["LastEvaluatedKey"]
+            )
+
+        for candidate_id, vote_count in counts.items():
+
+            applications_table.update_item(
+                Key={"user_id": candidate_id},
+                UpdateExpression="SET votes = :v",
+                ExpressionAttributeValues={
+                    ":v": vote_count
+                }
+            )
+
         try:
             polls_table.update_item(
                 Key={'id': poll_id},

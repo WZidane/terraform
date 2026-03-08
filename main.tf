@@ -271,6 +271,8 @@ resource "aws_lambda_function" "polls_lambda" {
 
   environment {
     variables = {
+      VOTES_TABLE = aws_dynamodb_table.votes.name
+      APPLICATIONS_TABLE = aws_dynamodb_table.applications.name
       POLLS_TABLE          = aws_dynamodb_table.polls.name
       COGNITO_USER_POOL_ID = aws_cognito_user_pool.voteka_pool.id
       COGNITO_REGION       = var.cognito_region

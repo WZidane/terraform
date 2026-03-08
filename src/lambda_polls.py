@@ -10,18 +10,20 @@ app_table = dynamodb.Table(os.environ.get('APPLICATION_TABLE'))
 s3_client = boto3.client('s3')
 
 def lambda_handler(event, context):
-    print("Event:", json.dumps(event))
-
-    request_context = event.get('requestContext', {})
-    
-    method = (
-        request_context.get('http', {}).get('method') or 
-        event.get('httpMethod') or 
-        request_context.get('method')
-    )
-    
-    path = event.get('rawPath') or event.get('path') or ""
+    method = event.get('httpMethod')
     path_params = event.get('pathParameters') or {}
+
+
+    if not method and 'requestContext' in event:
+        method = event['requestContext'].get('http', {}).get('method')
+
+    authorizer = event.get('requestContext', {}).get('authorizer', {})
+    
+    claims = authorizer.get('claims', {})
+    
+    user_id = claims.get('sub') or authorizer.get('jwt', {}).get('claims', {}).get('sub') or authorizer.get('principalId')
+
+    print(f"sub : {user_id}")
     
     # --- 1. ROUTE: GET /get-presigned-url ---
     if method == 'GET' and 'get-presigned-url' in path:
@@ -43,39 +45,75 @@ def lambda_handler(event, context):
     # On utilise 'in path' car le rawPath contient les IDs réels
     if method == 'POST' and '/application/' in path:
         poll_id = path_params.get('id')
-        user_id = path_params.get('userId')
-        body = json.loads(event.get('body', '{}'))
-        
-        item = {
-            'id': str(uuid.uuid4()),
-            'poll_id': poll_id,
-            'user_id': user_id,
-            'document_id': body.get('document_id'),
-            'status': 'pending'
-        }
-        app_table.put_item(Item=item)
-        return response(201, item)
+        if poll_id:
+            # GET /polls/{id} -> récupérer un poll spécifique
+            resp = polls_table.get_item(Key={'id': poll_id})
+            item = resp.get('Item')
+            if not item:
+                return response(404, {'error': 'Poll not found'})
+            return response(200, item)
+        else:
+            # lister tous les polls
+            resp = polls_table.scan()
+            return response(200, resp.get('Items', []))
 
-    # --- 3. ROUTES POLLS (GET /polls ou GET /polls/{id}) ---
-    if path.startswith('/polls'):
-        if method == 'GET':
-            poll_id = path_params.get('id')
-            if poll_id:
-                resp = polls_table.get_item(Key={'id': poll_id})
-                item = resp.get('Item')
-                return response(200, item) if item else response(404, {'error': 'Not found'})
-            else:
-                resp = polls_table.scan()
-                return response(200, resp.get('Items', []))
+    if method == 'POST':
+        try:
+            given_name = claims.get('given_name') or claims.get('custom:given_name', '')
+            family_name = claims.get('family_name') or claims.get('custom:family_name', '')
+            creator_name = f"{given_name} {family_name}".strip()
 
-        if method == 'POST':
             body = json.loads(event.get('body', '{}'))
             name = body.get('name')
             if not name: return response(400, {'error': 'Name required'})
             
-            item = {'id': str(uuid.uuid4()), 'name': name}
+            if not name:
+                return response(400, {'error': "l'attribut 'name' est requis"})
+
+            if len(name) > 200:
+                return response(400, {'error': "Le nom ne doit pas dépasser 200 caractères"})
+
+            poll_id = str(uuid.uuid4())
+            item = {'id': poll_id, 
+                'name': name,
+                'creator_name' : creator_name or "Anonyme", 
+                'creator_id': user_id, 
+                'is_active': True}
             polls_table.put_item(Item=item)
+
             return response(201, item)
+        except Exception as e:
+            return response(400, {'error': 'JSON invalide', 'details': str(e)})
+    
+    if method == 'PUT':
+        poll_id = path_params.get('id')
+        if not poll_id:
+            return response(400, {'error': "L'attribut 'id' est requis pour fermer un poll"})
+
+        if not user_id:
+            return response(401, {'error': 'Utilisateur non authentifié'})
+        
+        resp = polls_table.get_item(Key={'id': poll_id})
+        existing_poll = resp.get('Item')
+
+        if not existing_poll:
+            return response(404, {'error': "Sondage introuvable"})
+
+        if not existing_poll.get('is_active'):
+            return response(400, {'error': "Cette élection est déjà clôturée"})
+
+        if existing_poll.get('creator_id') != user_id:
+            return response(403, {'error': "Accès refusé : vous n'êtes pas le créateur de cette élection"})
+        
+        try:
+            polls_table.update_item(
+                Key={'id': poll_id},
+                UpdateExpression="set is_active = :val",
+                ExpressionAttributeValues={':val': False}
+            )
+            return response(200, {'message': f"Election merveilleusement cloturée !"})
+        except Exception as e:
+            return response(400, {'error': "Erreur lors de la cloture de l'élection", 'details': str(e)})
 
     # Si aucune route ne correspond
     return response(405, {'error': f'Method {method} not allowed on {path}'})

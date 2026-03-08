@@ -65,8 +65,7 @@
 
         async function createPoll(name) {
             const API_URL = "${api_url}/polls";
-            
-            // Récupération PROPRE du token depuis la session Cognito
+
             const cognitoUser = userPool.getCurrentUser();
             if (!cognitoUser) {
                 window.location.href = "login";
@@ -93,7 +92,8 @@
 
                     if (!response.ok) throw new Error("Erreur lors de l'appel API");
                     const result = await response.json();
-                    alert(`Élection créée ! ID: $${result.id}`);
+                    alert(`Élection créée !`);
+                    window.location.href = "/poll?id=" + result.id;
                 } catch (err) {
                     console.error(err);
                 }

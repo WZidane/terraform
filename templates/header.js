@@ -41,8 +41,10 @@ function createHeader() {
                 }
 
                 const givenName = attributes.find(attr => attr.Name === "given_name");
-                if (givenName) {
-                    document.getElementById('user').textContent = givenName.Value;
+                const familyName = attributes.find(attr => attr.Name === "family_name");
+
+                if (givenName || familyName) {
+                    document.getElementById('user').textContent = "Bienvenue, " + givenName.Value + " " + familyName.Value + " !";
                 }
             });
         })

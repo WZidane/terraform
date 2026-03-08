@@ -113,6 +113,12 @@
 
                 const applications = await response.json();
 
+                const responseCheckVote = await fetch(`${api_url}/votes?poll_id=$${pollId}`, {
+                    headers: { 'Authorization': idToken }
+                });
+                const userVotes = await responseCheckVote.json();
+                const hasVoted = userVotes && userVotes.length > 0;
+
                 if (applications.length === 0) {
                     listContainer.innerHTML = "<p class='text-gray-500 italic px-2'>Aucun candidat pour le moment.</p>";
                     return;
@@ -124,6 +130,11 @@
                     const card = document.createElement('div');
                     card.className = "bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center";
                     
+                    const voteButtonHtml = !hasVoted ? `
+                        <button onclick="voterPourCandidat('$${app.user_id}')" class="bg-green-600 text-white px-4 py-1.5 rounded-lg text-sm font-bold hover:bg-green-700 transition cursor-pointer shadow-sm">
+                            Voter pour ce candidat
+                        </button>
+                    ` : `<span class="text-green-600 font-medium text-sm"></span>`;
                     // On affiche le nom du candidat (ou son ID si le nom n'est pas stocké dans la table application)
                     card.innerHTML = `
                         <div class="flex items-center gap-3">
@@ -136,9 +147,7 @@
                         </div>
                         <div>Votes : $${app.votes || 0}</div>
                         <div class="flex items-center gap-4">
-                            <button onclick="voterPourCandidat('$${app.user_id}')" class="bg-green-600 text-white px-4 py-1.5 rounded-lg text-sm font-bold hover:bg-green-700 transition cursor-pointer shadow-sm">
-                                Voter pour ce candidat
-                            </button>
+                            $${voteButtonHtml}
                             $${app.document_id ? `
                                 <button onclick="ouvrirDocument('$${app.document_id}')" class="text-blue-500 hover:underline text-sm font-medium cursor-pointer">
                                     Voir le document

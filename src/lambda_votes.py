@@ -73,5 +73,16 @@ def lambda_handler(event, context):
         votes_table.put_item(Item=item)
 
         return response(201, item)
+    
+    if method == "GET":
+        poll_id = event.get('queryStringParameters', {}).get('poll_id')
+        if not poll_id:
+            return response(400, {'error': 'poll_id requis'})
+        resp = votes_table.query(
+            IndexName='UserIndex',
+            KeyConditionExpression=boto3.dynamodb.conditions.Key('user_id').eq(user_id) & 
+                                   boto3.dynamodb.conditions.Key('poll_id').eq(poll_id)
+        )
+        return response(200, resp.get('Items', []))
 
     return response(404, {'error': 'not found'})

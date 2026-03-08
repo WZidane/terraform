@@ -30,9 +30,15 @@ resource "aws_dynamodb_table" "votes" {
     type = "S"
   }
 
+  attribute {
+    name = "poll_id"
+    type = "S"
+  }
+
   global_secondary_index {
     name               = "UserIndex"
     hash_key           = "user_id"
+    range_key = "poll_id"
     projection_type    = "ALL"
   }
 
@@ -233,6 +239,7 @@ resource "aws_iam_role_policy" "lambda_combined_access" {
         ]
         Resource = [
           aws_dynamodb_table.votes.arn,
+          "${aws_dynamodb_table.votes.arn}/index/*",
           aws_dynamodb_table.polls.arn,
           aws_dynamodb_table.applications.arn,
           aws_dynamodb_table.documents.arn

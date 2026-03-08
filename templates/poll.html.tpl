@@ -135,14 +135,14 @@
                             </div>
                         </div>
                         <div class="flex items-center gap-4">
+                            <button onclick="voterPourCandidat('$${app.user_id}')" class="bg-green-600 text-white px-4 py-1.5 rounded-lg text-sm font-bold hover:bg-green-700 transition cursor-pointer shadow-sm">
+                                Voter pour ce candidat
+                            </button>
                             $${app.document_id ? `
                                 <button onclick="ouvrirDocument('$${app.document_id}')" class="text-blue-500 hover:underline text-sm font-medium cursor-pointer">
                                     Voir le document
                                 </button>
                             ` : '<span class="text-gray-300 text-sm italic">Aucun document</span>'}
-                            <button onclick="voterPourCandidat('$${app.user_id}')" class="bg-green-600 text-white px-4 py-1.5 rounded-lg text-sm font-bold hover:bg-green-700 transition cursor-pointer shadow-sm">
-                                Voter pour ce candidat
-                            </button>
                         </div>
                     `;
                     listContainer.appendChild(card);
@@ -343,7 +343,7 @@
             }
         }
 
-        async function voterPourCandidat(candidateSub) {
+        async function voterPourCandidat(candidateUserId) {
             if (!confirm("Confirmer votre vote ?")) return;
             
             try {
@@ -359,7 +359,7 @@
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        candidate_id: candidateSub,
+                        candidateUserId: candidateUserId,
                         poll_id: params.get("id")
                     })
                 });

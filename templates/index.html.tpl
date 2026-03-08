@@ -57,8 +57,13 @@
             listeUl.innerHTML = "<li>Chargement...</li>";
             erreurDiv.innerText = "";
 
+            const session = await new Promise((resolve, reject) => {
+                            cognitoUser.getSession((err, session) => err ? reject(err) : resolve(session));
+                        });
+            const token = session.getIdToken().getJwtToken();
+
             try {
-                const response = await fetch(API_URL, { headers: { 'Authorization': localStorage.getItem('token') || '' } });
+                const response = await fetch(API_URL, { headers: { 'Authorization': token || '' } });
                 if (!response.ok) throw new Error("Erreur lors de l'appel API");
 
                 const polls = await response.json();

@@ -40,27 +40,34 @@ resource "aws_dynamodb_table" "votes" {
 }
 
 resource "aws_dynamodb_table" "applications" {
-  name           = "Applications"
-  billing_mode   = "PAY_PER_REQUEST"
-  hash_key       = "id"
+  name         = "Applications"
+  billing_mode = "PAY_PER_REQUEST"
+
+  # clé principale
+  hash_key  = "poll_id"
+  range_key = "user_id"
 
   attribute {
-    name = "id"
+    name = "poll_id"
     type = "S"
   }
 
   attribute {
-    name = "user_id" # cognito sub
+    name = "user_id"
     type = "S"
   }
 
+  # index pour récupérer toutes les candidatures d'un utilisateur
   global_secondary_index {
-    name               = "UserAppIndex"
-    hash_key           = "user_id"
-    projection_type    = "ALL"
+    name            = "UserAppIndex"
+    hash_key        = "user_id"
+    range_key       = "poll_id"
+    projection_type = "ALL"
   }
 
-  tags = { Project = "Voteka" }
+  tags = {
+    Project = "Voteka"
+  }
 }
 
 resource "aws_dynamodb_table" "documents" {
@@ -422,6 +429,14 @@ resource "aws_apigatewayv2_route" "get_s3_url" {
 resource "aws_apigatewayv2_route" "post_applications" {
   api_id    = aws_apigatewayv2_api.voteka_api.id
   route_key = "POST /applications/{id}"
+  target    = "integrations/${aws_apigatewayv2_integration.applications_int.id}"
+  authorization_type = "JWT"
+  authorizer_id = aws_apigatewayv2_authorizer.cognito.id
+}
+
+resource "aws_apigatewayv2_route" "get_applications_poll" {
+  api_id    = aws_apigatewayv2_api.voteka_api.id
+  route_key = "GET /applications/{id}"
   target    = "integrations/${aws_apigatewayv2_integration.applications_int.id}"
   authorization_type = "JWT"
   authorizer_id = aws_apigatewayv2_authorizer.cognito.id

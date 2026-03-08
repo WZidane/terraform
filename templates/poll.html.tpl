@@ -129,6 +129,21 @@
                         btnCandidat.onclick = toggleModal;
                         btnCandidat.textContent = "Candidatez !";
 
+                        const session = await new Promise((resolve, reject) => {
+                            cognitoUser.getSession((err, session) => err ? reject(err) : resolve(session));
+                        });
+                        const token = session.getIdToken().getJwtToken();
+
+                        const res = await fetch(`${api_url}/applications/` + params.get("id"), {
+                            method: 'GET',
+                            headers: { 
+                                'Authorization': token,
+                                'Content-Type': 'application/json'
+                            },
+                        });
+
+                        const val = await res.json();
+
                         if (userId && poll.creator_id === userId) {
                             const btnTerminer = document.createElement('button');
                             btnTerminer.classList = "bg-red-600 text-white px-4 py-2 rounded-md shadow hover:bg-red-700 transition duration-300 text-sm font-bold cursor-pointer";
@@ -139,7 +154,7 @@
                             adminActions.appendChild(btnTerminer);
                         }
 
-                        info.appendChild(btnCandidat);
+                        val == null ? info.appendChild(btnCandidat) : (() => { const p = document.createElement("p"); p.className = "text-gray-500 italic"; p.textContent = "Vous êtes déjà inscrit à cette élection."; info.appendChild(p);})();
                     } else {
                         info.innerHTML = "<p class='text-gray-500 italic'>Cette élection est terminée.</p>";
                     }
@@ -162,12 +177,17 @@
             btn.disabled = true;
             btn.innerText = "Traitement...";
 
+            const session = await new Promise((resolve, reject) => {
+                cognitoUser.getSession((err, session) => err ? reject(err) : resolve(session));
+            });
+            const token = session.getIdToken().getJwtToken();
+
             try {
                 // 1. Si fichier présent -> Upload S3
                 if (file) {
                     docId = Date.now() + "-" + file.name.replace(/\s+/g, '_');
                     const preRes = await fetch(`${api_url}/get-presigned-url?filename=` + docId, {
-                        headers: { 'Authorization': localStorage.getItem('token') }
+                        headers: { 'Authorization': token }
                     });
                     const { upload_url } = await preRes.json();
 
@@ -178,7 +198,7 @@
                 const res = await fetch(`${api_url}/applications/` + params.get("id"), {
                     method: 'POST',
                     headers: { 
-                        'Authorization': localStorage.getItem('token'),
+                        'Authorization': token,
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({ document_id: docId })

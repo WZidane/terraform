@@ -54,6 +54,32 @@ def lambda_handler(event, context):
 
         except Exception as e:
             return response(500, {"error": str(e)})
+        
+
+    if method == "GET":
+
+        poll_id = path_params.get("id")
+
+        if not poll_id or not user_id:
+            return response(400, {"error": "poll_id et user_id requis"})
+            
+        resp = polls_table.get_item(Key={'id': poll_id})
+        existing_poll = resp.get('Item')
+
+        if not existing_poll:
+            return response(404, {'error': "Sondage introuvable"})
+
+        if not existing_poll.get('is_active'):
+            return response(400, {'error': "Cette élection est déjà clôturée"})
+
+        rep = applications_table.get_item(
+            Key={
+                "poll_id": poll_id,
+                "user_id": user_id
+            }
+        )
+
+        return response(200, rep.get('Item'))
 
     # GET /get-download-url?document_id=xxx
     if method == "GET" and "get-download-url" in path:
@@ -110,6 +136,16 @@ def lambda_handler(event, context):
 
         if not existing_poll.get('is_active'):
             return response(400, {'error': "Cette élection est déjà clôturée"})
+        
+        rep = applications_table.get_item(
+            Key={
+                "poll_id": poll_id,
+                "user_id": user_id
+            }
+        )
+
+        if rep.get('Item') is not None:
+            return response(400, {'error': "Vous êtes déjà inscrit pour cette élection."})
 
         body = json.loads(event.get("body", "{}"))
 

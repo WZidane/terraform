@@ -99,8 +99,6 @@
             const pollId = params.get("id");
             const API_URL_APPS = `${api_url}/applications/$${pollId}`;
 
-            console.log ("DEBUG: API_URL_APPS =", API_URL_APPS);
-
             try {
                 const session = await new Promise((resolve, reject) => {
                     cognitoUser.getSession((err, session) => err ? reject(err) : resolve(session));
@@ -136,12 +134,16 @@
                                 <p class="font-semibold text-gray-800">$${app.candidate_name || "Candidat Anonyme"}</p>
                             </div>
                         </div>
-                        <div>$${app.votes || 0}</div>
-                        $${app.document_id ? `
-                            <button onclick="ouvrirDocument('$${app.document_id}')" class="text-blue-500 hover:underline text-sm font-medium cursor-pointer">
-                                📄 Voir le document
+                        <div class="flex items-center gap-4">
+                            <button onclick="voterPourCandidat('$${app.user_id}')" class="bg-green-600 text-white px-4 py-1.5 rounded-lg text-sm font-bold hover:bg-green-700 transition cursor-pointer shadow-sm">
+                                Voter pour ce candidat
                             </button>
-                        ` : '<span class="text-gray-300 text-sm italic">Aucun document</span>'}
+                            $${app.document_id ? `
+                                <button onclick="ouvrirDocument('$${app.document_id}')" class="text-blue-500 hover:underline text-sm font-medium cursor-pointer">
+                                    Voir le document
+                                </button>
+                            ` : '<span class="text-gray-300 text-sm italic">Aucun document</span>'}
+                        </div>
                     `;
                     listContainer.appendChild(card);
                 });
@@ -338,6 +340,38 @@
                 location.reload(); // On recharge pour voir le changement de statut
             } catch (err) {
                 alert(err.message);
+            }
+        }
+
+        async function voterPourCandidat(candidateUserId) {
+            if (!confirm("Confirmer votre vote ?")) return;
+            
+            try {
+                const session = await new Promise((resolve, reject) => {
+                    cognitoUser.getSession((err, session) => err ? reject(err) : resolve(session));
+                });
+                const token = session.getIdToken().getJwtToken();
+
+                const response = await fetch(`${api_url}/votes`, {
+                    method: 'POST',
+                    headers: { 
+                        'Authorization': token,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        candidateUserId: candidateUserId,
+                        poll_id: params.get("id")
+                    })
+                });
+
+                if (response.ok) {
+                    alert("Vote enregistré !");
+                    location.reload(); 
+                } else {
+                    alert("Erreur lors du vote.");
+                }
+            } catch (err) {
+                console.error("Erreur vote:", err);
             }
         }
     </script>

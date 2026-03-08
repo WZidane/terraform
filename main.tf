@@ -30,9 +30,15 @@ resource "aws_dynamodb_table" "votes" {
     type = "S"
   }
 
+  attribute {
+    name = "poll_id"
+    type = "S"
+  }
+
   global_secondary_index {
     name               = "UserIndex"
     hash_key           = "user_id"
+    range_key = "poll_id"
     projection_type    = "ALL"
   }
 
@@ -233,6 +239,7 @@ resource "aws_iam_role_policy" "lambda_combined_access" {
         ]
         Resource = [
           aws_dynamodb_table.votes.arn,
+          "${aws_dynamodb_table.votes.arn}/index/*",
           aws_dynamodb_table.polls.arn,
           aws_dynamodb_table.applications.arn,
           aws_dynamodb_table.documents.arn
@@ -307,6 +314,7 @@ resource "aws_lambda_function" "votes_lambda" {
     variables = {
       VOTES_TABLE = aws_dynamodb_table.votes.name
       POLLS_TABLE = aws_dynamodb_table.polls.name
+      APPLICATIONS_TABLE = aws_dynamodb_table.applications.name
       COGNITO_USER_POOL_ID = aws_cognito_user_pool.voteka_pool.id
       COGNITO_REGION = var.cognito_region
     }
@@ -417,6 +425,7 @@ resource "aws_apigatewayv2_route" "post_votes" {
   api_id       = aws_apigatewayv2_api.voteka_api.id
   route_key    = "POST /votes"
   target       = "integrations/${aws_apigatewayv2_integration.votes_int.id}"
+  authorization_type = "JWT"
   authorizer_id = aws_apigatewayv2_authorizer.cognito.id
 }
 

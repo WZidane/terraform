@@ -136,6 +136,7 @@
                                 <p class="font-semibold text-gray-800">$${app.candidate_name || "Candidat Anonyme"}</p>
                             </div>
                         </div>
+                        <div>$${app.votes || 0}</div>
                         $${app.document_id ? `
                             <button onclick="ouvrirDocument('$${app.document_id}')" class="text-blue-500 hover:underline text-sm font-medium cursor-pointer">
                                 📄 Voir le document

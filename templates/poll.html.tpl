@@ -28,6 +28,13 @@
         <div id="message-erreur" class="text-red-600 mt-4 text-center font-medium"></div>
     </div>
 
+    <div class="max-w-3xl mx-auto mt-8 mb-10">
+        <h2 class="text-xl font-bold text-gray-700 mb-4 px-2">Candidats inscrits</h2>
+        <div id="applications-list" class="grid grid-cols-1 gap-4">
+            <p class="text-gray-500 italic px-2">Chargement des candidatures...</p>
+        </div>
+    </div>
+
     <div id="modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
         <div class="bg-white rounded-2xl shadow-xl max-w-md w-full overflow-hidden">
             <div class="px-6 py-4 border-b flex justify-between items-center">
@@ -87,6 +94,63 @@
 
         const params = new URLSearchParams(window.location.search);
 
+        async function chargerApplications() {
+            const listContainer = document.getElementById('applications-list');
+            const pollId = params.get("id");
+            const API_URL_APPS = `${api_url}/applications/$${pollId}`;
+
+            console.log ("DEBUG: API_URL_APPS =", API_URL_APPS);
+
+            try {
+                const session = await new Promise((resolve, reject) => {
+                    cognitoUser.getSession((err, session) => err ? reject(err) : resolve(session));
+                });
+                const idToken = session.getIdToken().getJwtToken();
+
+                const response = await fetch(API_URL_APPS, { 
+                    headers: { 'Authorization': idToken } 
+                });
+
+                if (!response.ok) throw new Error("Erreur candidatures");
+
+                const applications = await response.json();
+
+                if (applications.length === 0) {
+                    listContainer.innerHTML = "<p class='text-gray-500 italic px-2'>Aucun candidat pour le moment.</p>";
+                    return;
+                }
+
+                listContainer.innerHTML = ""; // On vide le loader
+
+                applications.forEach(app => {
+                    const card = document.createElement('div');
+                    card.className = "bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center";
+                    
+                    // On affiche le nom du candidat (ou son ID si le nom n'est pas stocké dans la table application)
+                    card.innerHTML = `
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold">
+                                $${(app.candidate_name || "C").charAt(0)}
+                            </div>
+                            <div>
+                                <p class="font-semibold text-gray-800">$${app.candidate_name || "Candidat Anonyme"}</p>
+                            </div>
+                        </div>
+                        $${app.document_id ? `
+                            <button onclick="ouvrirDocument('$${app.document_id}')" class="text-blue-500 hover:underline text-sm font-medium cursor-pointer">
+                                📄 Voir le document
+                            </button>
+                        ` : '<span class="text-gray-300 text-sm italic">Aucun document</span>'}
+                    `;
+                    listContainer.appendChild(card);
+                });
+
+            } catch (err) {
+                console.error(err);
+                listContainer.innerHTML = "<p class='text-red-500'>Erreur lors du chargement des candidats.</p>";
+            }
+        }
+
         async function chargerPoll() {
 
             const title = document.getElementById('title');
@@ -122,6 +186,8 @@
                     creatorDiv.className = "text-sm text-gray-500 mb-6 text-center";
                     creatorDiv.textContent = "Créée par : " + (poll.creator_name || "Utilisateur inconnu");
                     title.parentNode.insertBefore(creatorDiv, title.nextSibling);
+
+                    chargerApplications()
                     
                     if(poll.is_active) {
                         const btnCandidat = document.createElement('button');
@@ -163,11 +229,18 @@
             btn.innerText = "Traitement...";
 
             try {
+                const session = await new Promise((resolve, reject) => {
+                    cognitoUser.getSession((err, session) => err ? reject(err) : resolve(session));
+                });
+                const idToken = session.getIdToken().getJwtToken();
                 // 1. Si fichier présent -> Upload S3
                 if (file) {
                     docId = Date.now() + "-" + file.name.replace(/\s+/g, '_');
+                    // const preRes = await fetch(`${api_url}/get-presigned-url?filename=` + docId, {
+                    //     headers: { 'Authorization': localStorage.getItem('token') }
+                    // });
                     const preRes = await fetch(`${api_url}/get-presigned-url?filename=` + docId, {
-                        headers: { 'Authorization': localStorage.getItem('token') }
+                        headers: { 'Authorization': idToken }
                     });
                     const { upload_url } = await preRes.json();
 
@@ -178,7 +251,8 @@
                 const res = await fetch(`${api_url}/applications/` + params.get("id"), {
                     method: 'POST',
                     headers: { 
-                        'Authorization': localStorage.getItem('token'),
+                        // 'Authorization': localStorage.getItem('token'),
+                        'Authorization': idToken,
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({ document_id: docId })
@@ -203,6 +277,32 @@
                 document.getElementById('file-name-display').innerText = input.files[0].name;
                 document.getElementById('file-name-display').classList.add('text-blue-600');
                 document.getElementById('file-subtext').innerText = "Fichier prêt";
+            }
+        }
+
+        async function ouvrirDocument(docId) {
+            try {
+                const session = await new Promise((resolve, reject) => {
+                    cognitoUser.getSession((err, session) => err ? reject(err) : resolve(session));
+                });
+                const token = session.getIdToken().getJwtToken();
+
+                // On demande l'URL de téléchargement à la Lambda
+                const res = await fetch(`${api_url}/get-download-url?document_id=$${docId}`, {
+                    headers: { 'Authorization': token }
+                });
+                
+                const data = await res.json();
+                
+                if (data.download_url) {
+                    // Ouvre le document dans un nouvel onglet
+                    window.open(data.download_url, '_blank');
+                } else {
+                    alert("Impossible de récupérer le document.");
+                }
+            } catch (err) {
+                console.error("Erreur doc:", err);
+                alert("Erreur lors de l'ouverture du document.");
             }
         }
 

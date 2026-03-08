@@ -1,6 +1,6 @@
 # 🗳️ Voteka
 
-URL de l'application : [Voteka](https://d144s6r7bplti6.cloudfront.net/)
+URL de l'application : [Voteka](https://d17vrpacoamf6r.cloudfront.net/)
 
 ## Auteurs
 

@@ -22,3 +22,6 @@ terraform init
 ```bash
 terraform apply
 ```
+### ⚠️ Attention
+
+- Lors de l'inscription sur la démo, l'email utilisée doit être correcte afin de pouvoir récupérer un code de vérification pour l'authentification.

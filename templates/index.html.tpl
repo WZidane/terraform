@@ -18,13 +18,13 @@
 </head>
 <body>
 
-    <div class="max-w-3xl mx-auto p-6 bg-white rounded-lg shadow-md mt-8">
+    <div class="max-w-3xl mx-auto p-6 bg-white rounded-lg shadow-md mt-8 justify-center flex flex-col items-center">
         <h1 class="text-3xl font-bold text-gray-800 mb-4 text-center">Élections Voteka</h1>
         
+        <button class="bg-blue-500 text-center text-white my-5 w-50 p-3 h-min rounded-lg shadow-md hover:bg-white hover:text-blue-500 hover:shadow-lg transition duration-300 cursor-pointer" onclick="javascript:window.location.href='create-poll'">Créer une élection</button>
+
         <ul id="liste-polls" class="divide-y divide-gray-200 flex flex-col justify-center items-center max-h-96 overflow-y-auto"></ul>
         
-        <button onclick="javascript:window.location.href='create-poll'">Créer une élection</button>
-
         <div id="message-erreur" class="text-red-600 mt-4 text-center font-medium"></div>
     </div>
 

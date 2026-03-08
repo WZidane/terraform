@@ -4,18 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdn.jsdelivr.net/npm/amazon-cognito-identity-js@6.3.7/dist/amazon-cognito-identity.min.js"></script>
-    <title>Voteka</title>
-    <style>
-        body { font-family: sans-serif; background: #f4f4f9; padding: 20px; text-align: center; }
-        .container { max-width: 500px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        h1 { color: #333; }
-        ul { list-style: none; padding: 0; }
-        li { padding: 10px; border-bottom: 1px solid #eee; color: #555; }
-        li:last-child { border-bottom: none; }
-        button { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; }
-        button:hover { background: #0056b3; }
-        .error { color: red; margin-top: 10px; }
-    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <title>🗳️ Voteka</title>
 
     <script>
         window.VotekaConfig = {
@@ -28,11 +18,11 @@
 </head>
 <body>
 
-    <div class="container">
+    <div class="container m-auto">
         <h1>Créer une nouvelle élection</h1>
         <form id="loginForm" class="space-y-4">
             <input type="text" id="name" placeholder="Nom de l'élection" class="w-full p-2 border rounded" maxlength="200" required>
-            <button type="submit" class="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600">Créer l'élection</button>
+            <button type="submit" class="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600 cursor-pointer">Créer l'élection</button>
         </form>
 
     </div>

@@ -39,8 +39,8 @@ resource "aws_dynamodb_table" "votes" {
   tags = { Project = "Voteka" }
 }
 
-resource "aws_dynamodb_table" "application" {
-  name           = "Application"
+resource "aws_dynamodb_table" "applications" {
+  name           = "Applications"
   billing_mode   = "PAY_PER_REQUEST"
   hash_key       = "id"
 
@@ -227,7 +227,7 @@ resource "aws_iam_role_policy" "lambda_combined_access" {
         Resource = [
           aws_dynamodb_table.votes.arn,
           aws_dynamodb_table.polls.arn,
-          aws_dynamodb_table.application.arn,
+          aws_dynamodb_table.applications.arn,
           aws_dynamodb_table.documents.arn
         ]
       },
@@ -258,8 +258,27 @@ resource "aws_lambda_function" "polls_lambda" {
   environment {
     variables = {
       POLLS_TABLE          = aws_dynamodb_table.polls.name
-      APPLICATION_TABLE    = aws_dynamodb_table.application.name
-      BUCKET_NAME          = aws_s3_bucket.documents.id  
+      COGNITO_USER_POOL_ID = aws_cognito_user_pool.voteka_pool.id
+      COGNITO_REGION       = var.cognito_region
+    }
+  }
+}
+
+resource "aws_lambda_function" "applications_lambda" {
+  function_name = "voteka_applications_handler"
+
+  filename         = data.archive_file.lambda.output_path
+  source_code_hash = data.archive_file.lambda.output_base64sha256
+
+  role    = aws_iam_role.lambda_role.arn
+  runtime = "python3.11"
+  handler = "lambda_applications.lambda_handler"
+
+  environment {
+    variables = {
+      POLLS_TABLE = aws_dynamodb_table.polls.name
+      APPLICATIONS_TABLE = aws_dynamodb_table.applications.name
+      BUCKET_NAME       = aws_s3_bucket.documents.id
       COGNITO_USER_POOL_ID = aws_cognito_user_pool.voteka_pool.id
       COGNITO_REGION       = var.cognito_region
     }
@@ -317,6 +336,12 @@ resource "aws_apigatewayv2_integration" "polls_int" {
   api_id           = aws_apigatewayv2_api.voteka_api.id
   integration_type = "AWS_PROXY"
   integration_uri  = aws_lambda_function.polls_lambda.invoke_arn
+}
+
+resource "aws_apigatewayv2_integration" "applications_int" {
+  api_id           = aws_apigatewayv2_api.voteka_api.id
+  integration_type = "AWS_PROXY"
+  integration_uri  = aws_lambda_function.applications_lambda.invoke_arn
 }
 
 resource "aws_apigatewayv2_integration" "votes_int" {
@@ -389,14 +414,16 @@ resource "aws_apigatewayv2_route" "post_votes" {
 resource "aws_apigatewayv2_route" "get_s3_url" {
   api_id    = aws_apigatewayv2_api.voteka_api.id
   route_key = "GET /get-presigned-url"
-  target    = "integrations/${aws_apigatewayv2_integration.polls_int.id}"
+  target    = "integrations/${aws_apigatewayv2_integration.applications_int.id}"
+  authorization_type = "JWT"
   authorizer_id = aws_apigatewayv2_authorizer.cognito.id
 }
 
-resource "aws_apigatewayv2_route" "post_application" {
+resource "aws_apigatewayv2_route" "post_applications" {
   api_id    = aws_apigatewayv2_api.voteka_api.id
-  route_key = "POST /application/{id}/{userId}"
-  target    = "integrations/${aws_apigatewayv2_integration.polls_int.id}"
+  route_key = "POST /applications/{id}"
+  target    = "integrations/${aws_apigatewayv2_integration.applications_int.id}"
+  authorization_type = "JWT"
   authorizer_id = aws_apigatewayv2_authorizer.cognito.id
 }
 
@@ -406,6 +433,14 @@ resource "aws_lambda_permission" "api_gw_polls" {
   statement_id  = "AllowExecutionFromAPIGatewayPolls"
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.polls_lambda.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.voteka_api.execution_arn}/*/*"
+}
+
+resource "aws_lambda_permission" "api_gw_applications" {
+  statement_id  = "AllowExecutionFromAPIGatewayPolls"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.applications_lambda.function_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.voteka_api.execution_arn}/*/*"
 }

@@ -5,7 +5,7 @@ const CONFIG = {
 
 function createHeader() {
     const headerHTML = `
-        <nav class="flex justify-between items-center p-4 bg-gray-800 text-white mb-5">
+        <nav class="flex justify-between items-center p-4 bg-gray-700 text-white mb-5">
             <div class="font-bold text-lg">
                 <a href="/" class="text-white no-underline">🗳️ Voteka</a>
             </div>

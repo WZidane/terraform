@@ -6,16 +6,20 @@ from common import response, dynamodb
 
 # Tables et Clients
 polls_table = dynamodb.Table(os.environ.get('POLLS_TABLE'))
-app_table = dynamodb.Table(os.environ.get('APPLICATION_TABLE'))
 s3_client = boto3.client('s3')
 
 def lambda_handler(event, context):
     method = event.get('httpMethod')
+    path = event.get('rawPath') or event.get('path') or ""
     path_params = event.get('pathParameters') or {}
 
+    request_context = event.get('requestContext', {})
 
-    if not method and 'requestContext' in event:
-        method = event['requestContext'].get('http', {}).get('method')
+    method = (
+        request_context.get('http', {}).get('method') or 
+        event.get('httpMethod') or 
+        request_context.get('method')
+    )
 
     authorizer = event.get('requestContext', {}).get('authorizer', {})
     
@@ -24,36 +28,14 @@ def lambda_handler(event, context):
     user_id = claims.get('sub') or authorizer.get('jwt', {}).get('claims', {}).get('sub') or authorizer.get('principalId')
 
     print(f"sub : {user_id}")
-    
-    # --- 1. ROUTE: GET /get-presigned-url ---
-    if method == 'GET' and 'get-presigned-url' in path:
-        file_name = event.get('queryStringParameters', {}).get('filename', str(uuid.uuid4()))
-        try:
-            url = s3_client.generate_presigned_url(
-                'put_object',
-                Params={
-                    'Bucket': os.environ['BUCKET_NAME'],
-                    'Key': f"candidatures/{file_name}"
-                },
-                ExpiresIn=300
-            )
-            return response(200, {'upload_url': url})
-        except Exception as e:
-            return response(500, {'error': str(e)})
 
-    # --- 2. ROUTE: POST /application/{id}/{userId} ---
-    # On utilise 'in path' car le rawPath contient les IDs réels
-    if method == 'POST' and '/application/' in path:
+    if method == 'GET':
         poll_id = path_params.get('id')
         if poll_id:
-            # GET /polls/{id} -> récupérer un poll spécifique
             resp = polls_table.get_item(Key={'id': poll_id})
             item = resp.get('Item')
-            if not item:
-                return response(404, {'error': 'Poll not found'})
-            return response(200, item)
+            return response(200, item) if item else response(404, {'error': 'Not found'})
         else:
-            # lister tous les polls
             resp = polls_table.scan()
             return response(200, resp.get('Items', []))
 

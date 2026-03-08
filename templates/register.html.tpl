@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <title>Voteka - Inscription</title>
+  <title>🗳️ Voteka - Inscription</title>
   <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
   <script src="https://cdn.jsdelivr.net/npm/amazon-cognito-identity-js@6.3.7/dist/amazon-cognito-identity.min.js"></script>
 </head>
@@ -24,7 +24,7 @@
       <button type="submit" class="w-full bg-green-500 text-white p-2 rounded hover:bg-green-600">Confirmer mon compte</button>
     </form>
 
-    <p class="mt-4 text-center text-sm">Déjà un compte ? <a href="login.html" class="text-blue-500">Connexion</a></p>
+    <p class="mt-4 text-center text-sm">Déjà un compte ? <a href="login" class="text-blue-500">Connexion</a></p>
     <p id="message" class="mt-2 text-center text-sm"></p>
   </div>
 
@@ -35,6 +35,20 @@
     };
 
     const userPool = new AmazonCognitoIdentity.CognitoUserPool(poolData);
+
+    const cognitoUser = userPool.getCurrentUser();
+
+    if (cognitoUser != null) {
+        cognitoUser.getSession((err, session) => {
+            if (err || !session.isValid()) {
+                window.location.href = "login";
+                return;
+            } else {
+              window.location.href = "/";
+            }
+        });
+    }
+
     let userEmail = "";
 
     // GESTION DE L'INSCRIPTION
@@ -85,7 +99,7 @@
         }
         message.textContent = "Compte validé ! Redirection vers la connexion...";
         message.className = "mt-2 text-center text-green-500";
-        setTimeout(() => window.location.href = "login.html", 2000);
+        setTimeout(() => window.location.href = "login", 2000);
       });
     });
   </script>

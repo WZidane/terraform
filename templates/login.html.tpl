@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <title>Voteka - Connexion</title>
+  <title>🗳️ Voteka - Connexion</title>
   <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
   <script src="https://cdn.jsdelivr.net/npm/amazon-cognito-identity-js@6.3.7/dist/amazon-cognito-identity.min.js"></script>
 </head>
@@ -16,7 +16,7 @@
       <button type="submit" class="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600">Se connecter</button>
     </form>
     
-    <p class="mt-4 text-center text-sm">Pas de compte ? <a href="register.html" class="text-blue-500">S'inscrire</a></p>
+    <p class="mt-4 text-center text-sm">Pas de compte ? <a href="register" class="text-blue-500">S'inscrire</a></p>
     <p id="message" class="mt-2 text-center text-red-500 text-sm"></p>
   </div>
 
@@ -28,6 +28,19 @@
     };
 
     const userPool = new AmazonCognitoIdentity.CognitoUserPool(poolData);
+
+    const cognitoUser = userPool.getCurrentUser();
+
+    if (cognitoUser != null) {
+        cognitoUser.getSession((err, session) => {
+            if (err || !session.isValid()) {
+                window.location.href = "login";
+                return;
+            } else {
+              window.location.href = "/";
+            }
+        });
+    }
 
     document.getElementById("loginForm").addEventListener("submit", (e) => {
       e.preventDefault();
@@ -57,7 +70,7 @@
           localStorage.setItem("token", accessToken);
           
           console.log("Connexion réussie !");
-          window.location.href = "index.html"; // Redirige vers l'index ou profil
+          window.location.href = "index"; // Redirige vers l'index ou profil
         },
 
         onFailure: function(err) {

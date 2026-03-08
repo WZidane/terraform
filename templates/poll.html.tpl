@@ -141,13 +141,13 @@
                             name: `$${app.candidate_name}`,
                             votes: `$${app.votes || 0}`
                         });
-                    }
-
-                    const voteButtonHtml = !hasVoted ? `
+                    } 
+                    const voteButtonHtml = !hasVoted && window.currentPoll.is_active ? `
                         <button onclick="voterPourCandidat('$${app.user_id}')" class="bg-green-600 text-white px-4 py-1.5 rounded-lg text-sm font-bold hover:bg-green-700 transition cursor-pointer shadow-sm">
                             Voter pour ce candidat
                         </button>
                     ` : `<span class="text-green-600 font-medium text-sm"></span>`;
+
                     // On affiche le nom du candidat (ou son ID si le nom n'est pas stocké dans la table application)
                     card.innerHTML = `
                         <div class="flex items-center gap-3">

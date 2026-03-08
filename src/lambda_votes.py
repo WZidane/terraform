@@ -7,13 +7,14 @@ votes_table = dynamodb.Table(os.environ.get('VOTES_TABLE', 'Votes'))
 polls_table = dynamodb.Table(os.environ.get('POLLS_TABLE', 'Polls'))
 
 def lambda_handler(event, context):
-    method = event.get('requestContext', {}).get('http', {}).get('method')
+    method = event.get('httpMethod')
     
     # Récupération du sub via l'Authorizer
-    try:
-        user_id = event['requestContext']['authorizer']['jwt']['claims']['sub']
-    except KeyError:
-        return response(401, {'error': 'Unauthorized'})
+    authorizer = event.get('requestContext', {}).get('authorizer', {})
+    
+    claims = authorizer.get('claims', {})
+    
+    user_id = claims.get('sub') or authorizer.get('jwt', {}).get('claims', {}).get('sub') or authorizer.get('principalId')
 
     if method == 'POST':
         body = json.loads(event.get('body', '{}'))

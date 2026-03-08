@@ -81,6 +81,43 @@ def lambda_handler(event, context):
 
         return response(200, rep.get('Item'))
 
+    # GET /get-download-url?document_id=xxx
+    if method == "GET" and "get-download-url" in path:
+        doc_id = event.get("queryStringParameters", {}).get("document_id")
+        
+        if not doc_id:
+            return response(400, {"error": "document_id requis"})
+
+        try:
+            # Génère une URL de lecture valable 10 minutes
+            url = s3_client.generate_presigned_url(
+                "get_object",
+                Params={
+                    "Bucket": os.environ["BUCKET_NAME"],
+                    "Key": f"candidatures/{doc_id}"
+                },
+                ExpiresIn=600 
+            )
+            return response(200, {"download_url": url})
+        except Exception as e:
+            return response(500, {"error": str(e)})
+
+    if method == "GET" and "applications" in path:
+        
+        poll_id = path_params.get("id")
+
+        if not poll_id:
+            return response(400, {"error": "poll_id requis"})
+
+        resp = applications_table.scan(
+            FilterExpression="poll_id = :poll_id",
+            ExpressionAttributeValues={":poll_id": poll_id}
+        )
+
+        items = resp.get("Items", [])
+
+        return response(200, items)
+
     # -----------------------------
     # POST /applications/{id}/
     # -----------------------------
@@ -114,10 +151,17 @@ def lambda_handler(event, context):
 
         application_id = str(uuid.uuid4())
 
+        given_name = claims.get('given_name') or claims.get('custom:given_name', '')
+        family_name = claims.get('family_name') or claims.get('custom:family_name', '')
+        creator_name = f"{given_name} {family_name}".strip()
+        print(f"DEBUG CLAIMS FULL: {json.dumps(claims)}")
+        print(f"Bonjour, voici le nom du candidat : {creator_name}")
+
         item = {
             "id": application_id,
             "poll_id": poll_id,
             "user_id": user_id,
+            "candidate_name": creator_name or "Anonyme",
             "document_id": body.get("document_id", None),
         }
 

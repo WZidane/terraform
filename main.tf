@@ -240,7 +240,7 @@ resource "aws_iam_role_policy" "lambda_combined_access" {
       },
       {
         Effect = "Allow"
-        Action = ["s3:PutObject"]
+        Action = ["s3:PutObject", "s3:GetObject"]
         Resource = "${aws_s3_bucket.documents.arn}/*"
       }
     ]
@@ -426,6 +426,14 @@ resource "aws_apigatewayv2_route" "get_s3_url" {
   authorizer_id = aws_apigatewayv2_authorizer.cognito.id
 }
 
+resource "aws_apigatewayv2_route" "get_download_url" {
+  api_id    = aws_apigatewayv2_api.voteka_api.id
+  route_key = "GET /get-download-url"
+  target    = "integrations/${aws_apigatewayv2_integration.applications_int.id}"
+  authorization_type = "JWT"
+  authorizer_id = aws_apigatewayv2_authorizer.cognito.id
+}
+
 resource "aws_apigatewayv2_route" "post_applications" {
   api_id    = aws_apigatewayv2_api.voteka_api.id
   route_key = "POST /applications/{id}"
@@ -434,9 +442,17 @@ resource "aws_apigatewayv2_route" "post_applications" {
   authorizer_id = aws_apigatewayv2_authorizer.cognito.id
 }
 
-resource "aws_apigatewayv2_route" "get_applications_poll" {
+resource "aws_apigatewayv2_route" "get_applications" {
   api_id    = aws_apigatewayv2_api.voteka_api.id
   route_key = "GET /applications/{id}"
+  target    = "integrations/${aws_apigatewayv2_integration.applications_int.id}"
+  authorization_type = "JWT"
+  authorizer_id = aws_apigatewayv2_authorizer.cognito.id
+}
+
+resource "aws_apigatewayv2_route" "get_applications_poll" {
+  api_id    = aws_apigatewayv2_api.voteka_api.id
+  route_key = "GET /applications/poll/{id}"
   target    = "integrations/${aws_apigatewayv2_integration.applications_int.id}"
   authorization_type = "JWT"
   authorizer_id = aws_apigatewayv2_authorizer.cognito.id

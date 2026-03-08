@@ -134,6 +134,7 @@
                                 <p class="font-semibold text-gray-800">$${app.candidate_name || "Candidat Anonyme"}</p>
                             </div>
                         </div>
+                        <div>Votes : $${app.votes || 0}</div>
                         <div class="flex items-center gap-4">
                             <button onclick="voterPourCandidat('$${app.user_id}')" class="bg-green-600 text-white px-4 py-1.5 rounded-lg text-sm font-bold hover:bg-green-700 transition cursor-pointer shadow-sm">
                                 Voter pour ce candidat

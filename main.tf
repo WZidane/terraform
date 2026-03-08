@@ -42,6 +42,12 @@ resource "aws_dynamodb_table" "votes" {
     projection_type    = "ALL"
   }
 
+  global_secondary_index {
+    name            = "PollVotesIndex"
+    hash_key        = "poll_id"
+    projection_type = "ALL"
+  }
+
   tags = { Project = "Voteka" }
 }
 
@@ -240,6 +246,7 @@ resource "aws_iam_role_policy" "lambda_combined_access" {
         Resource = [
           aws_dynamodb_table.votes.arn,
           "${aws_dynamodb_table.votes.arn}/index/*",
+          "arn:aws:dynamodb:eu-north-1:646082657269:table/Votes/index/*",
           aws_dynamodb_table.polls.arn,
           aws_dynamodb_table.applications.arn,
           aws_dynamodb_table.documents.arn
